@@ -1,5 +1,89 @@
 import { signatures } from '../utils/signatures';
 
+// Cache for repository tree to avoid redundant API calls
+const treeCache = new Map<string, { paths: string[], timestamp: number }>();
+const TREE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Fetch the full repository tree using GitHub API
+async function fetchRepoTree(owner: string, repo: string): Promise<string[]> {
+  const cacheKey = `${owner}/${repo}`;
+  const cached = treeCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < TREE_CACHE_TTL) {
+    console.log('[GitStack] Using cached tree for', cacheKey);
+    return cached.paths;
+  }
+
+  try {
+    // Try to get the default branch first
+    const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+    if (!repoRes.ok) {
+      console.warn('[GitStack] Failed to fetch repo info, falling back to shallow scan');
+      return [];
+    }
+    const repoData = await repoRes.json();
+    const defaultBranch = repoData.default_branch || 'main';
+
+    // Fetch the full tree recursively
+    const treeRes = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`
+    );
+
+    if (!treeRes.ok) {
+      // Check if rate limited
+      const remaining = treeRes.headers.get('X-RateLimit-Remaining');
+      if (remaining === '0') {
+        console.warn('[GitStack] GitHub API rate limit reached, falling back to shallow scan');
+      }
+      return [];
+    }
+
+    const treeData = await treeRes.json();
+
+    if (treeData.truncated) {
+      console.warn('[GitStack] Tree was truncated (large repo), some files may be missed');
+    }
+
+    // Extract all file paths
+    const paths: string[] = treeData.tree
+      .filter((item: any) => item.type === 'blob' || item.type === 'tree')
+      .map((item: any) => item.path);
+
+    // Cache the result
+    treeCache.set(cacheKey, { paths, timestamp: Date.now() });
+    console.log(`[GitStack] Fetched ${paths.length} paths from repo tree`);
+
+    return paths;
+  } catch (error) {
+    console.warn('[GitStack] Error fetching tree:', error);
+    return [];
+  }
+}
+
+// Check if a path matches a signature file pattern
+function matchesFilePattern(filePaths: string[], pattern: string): boolean {
+  // Handle directory patterns like '.github/workflows'
+  if (pattern.includes('/')) {
+    return filePaths.some(path =>
+      path === pattern ||
+      path.startsWith(pattern + '/') ||
+      path.endsWith('/' + pattern) ||
+      path.includes('/' + pattern + '/')
+    );
+  }
+
+  // Handle simple filename matching (at any depth)
+  return filePaths.some(path => {
+    const fileName = path.split('/').pop() || '';
+    return fileName === pattern;
+  });
+}
+
+// Check if any path has a matching extension
+function matchesExtension(filePaths: string[], extension: string): boolean {
+  return filePaths.some(path => path.endsWith(extension));
+}
+
 export default defineContentScript({
   matches: ['*://github.com/*'],
   main() {
@@ -13,26 +97,49 @@ export default defineContentScript({
 
       const detectedSet = new Set<string>();
 
-      // 2. Scan visible files (File explorer) - keep this as a fast first pass
-      const fileElements = document.querySelectorAll('.react-directory-row-name-cell-large-screen .react-directory-filename-column .react-directory-truncate a');
-      let fileNames = Array.from(fileElements).map(el => el.textContent?.trim() || '');
+      // 2. Fetch full repository tree for deep scanning
+      const allFilePaths = await fetchRepoTree(owner, repo);
+      const hasTreeData = allFilePaths.length > 0;
 
-      if (fileNames.length === 0) {
-        const legacyElements = document.querySelectorAll('.js-navigation-item .js-navigation-open');
-        fileNames = Array.from(legacyElements).map(el => el.textContent?.trim() || '').filter(Boolean);
+      // 3. Scan using tree data (deep) or fall back to visible files (shallow)
+      if (hasTreeData) {
+        // Deep scan: Match against all files in the repository
+        console.log('[GitStack] Performing deep scan with', allFilePaths.length, 'files');
+
+        signatures.forEach(sig => {
+          // Check file patterns
+          if (sig.files && sig.files.some(f => matchesFilePattern(allFilePaths, f))) {
+            detectedSet.add(sig.name);
+          }
+          // Check extensions
+          if (sig.extensions && sig.extensions.some(ext => matchesExtension(allFilePaths, ext))) {
+            detectedSet.add(sig.name);
+          }
+        });
+      } else {
+        // Shallow scan: Only check visible files in file explorer (fallback)
+        console.log('[GitStack] Falling back to shallow scan');
+
+        const fileElements = document.querySelectorAll('.react-directory-row-name-cell-large-screen .react-directory-filename-column .react-directory-truncate a');
+        let fileNames = Array.from(fileElements).map(el => el.textContent?.trim() || '');
+
+        if (fileNames.length === 0) {
+          const legacyElements = document.querySelectorAll('.js-navigation-item .js-navigation-open');
+          fileNames = Array.from(legacyElements).map(el => el.textContent?.trim() || '').filter(Boolean);
+        }
+
+        if (fileNames.length === 0) {
+          const rowItems = document.querySelectorAll('tr.react-directory-row td.react-directory-row-name-cell-large-screen a');
+          fileNames = Array.from(rowItems).map(el => el.textContent?.trim() || '').filter(Boolean);
+        }
+
+        signatures.forEach(sig => {
+          if (sig.files && sig.files.some(f => fileNames.includes(f))) detectedSet.add(sig.name);
+          if (sig.extensions && sig.extensions.some(ext => fileNames.some(f => f.endsWith(ext)))) detectedSet.add(sig.name);
+        });
       }
 
-      if (fileNames.length === 0) {
-        const rowItems = document.querySelectorAll('tr.react-directory-row td.react-directory-row-name-cell-large-screen a');
-        fileNames = Array.from(rowItems).map(el => el.textContent?.trim() || '').filter(Boolean);
-      }
-
-      signatures.forEach(sig => {
-        if (sig.files && sig.files.some(f => fileNames.includes(f))) detectedSet.add(sig.name);
-        if (sig.extensions && sig.extensions.some(ext => fileNames.some(f => f.endsWith(ext)))) detectedSet.add(sig.name);
-      });
-
-      // 3. Deep Scan: Fetch key config files in parallel
+      // 4. Deep Scan: Fetch key config files in parallel for dependency analysis
       // We define a list of files to check and how to parse them
       const configFiles = [
         { name: 'package.json', parser: 'json', key: 'dependencies' }, // & devDependencies

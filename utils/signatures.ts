@@ -8,22 +8,106 @@ export interface TechSignature {
 }
 
 export const signatures: TechSignature[] = [
-    // --- THE EFFECT ECOSYSTEM (effect.website) ---
-    { name: 'Effect', type: 'tool', packageJSONDependencies: ['effect'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
-    { name: 'Effect Platform', type: 'tool', packageJSONDependencies: ['@effect/platform', '@effect/platform-node', '@effect/platform-browser', '@effect/platform-bun'] },
-    { name: 'Effect Schema', type: 'tool', packageJSONDependencies: ['@effect/schema'] },
-    { name: 'Effect SQL', type: 'tool', packageJSONDependencies: ['@effect/sql', '@effect/sql-pg', '@effect/sql-sqlite-node', '@effect/sql-mysql2'] },
+    // --- THE EFFECT ECOSYSTEM (effect.website) - COMPREHENSIVE COVERAGE ---
+    // Core Effect
+    { name: 'Effect', type: 'framework', packageJSONDependencies: ['effect'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+
+    // Effect Schema (data validation & transformation)
+    { name: 'Effect Schema', type: 'tool', packageJSONDependencies: ['@effect/schema'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+
+    // Effect Platform (cross-runtime abstractions)
+    { name: 'Effect Platform', type: 'tool', packageJSONDependencies: ['@effect/platform'] },
+    { name: 'Effect Platform Node', type: 'tool', packageJSONDependencies: ['@effect/platform-node', '@effect/platform-node-shared'] },
+    { name: 'Effect Platform Browser', type: 'tool', packageJSONDependencies: ['@effect/platform-browser'] },
+    { name: 'Effect Platform Bun', type: 'tool', packageJSONDependencies: ['@effect/platform-bun'] },
+
+    // Effect SQL (database integrations)
+    { name: 'Effect SQL', type: 'tool', packageJSONDependencies: ['@effect/sql'] },
+    { name: 'Effect SQL PostgreSQL', type: 'tool', packageJSONDependencies: ['@effect/sql-pg'] },
+    { name: 'Effect SQL MySQL', type: 'tool', packageJSONDependencies: ['@effect/sql-mysql2'] },
+    { name: 'Effect SQL SQLite Node', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-node'] },
+    { name: 'Effect SQL SQLite Bun', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-bun'] },
+    { name: 'Effect SQL SQLite WASM', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-wasm'] },
+    { name: 'Effect SQL SQLite React Native', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-react-native'] },
+    { name: 'Effect SQL ClickHouse', type: 'tool', packageJSONDependencies: ['@effect/sql-clickhouse'] },
+    { name: 'Effect SQL MSSQL', type: 'tool', packageJSONDependencies: ['@effect/sql-mssql'] },
+    { name: 'Effect SQL LibSQL', type: 'tool', packageJSONDependencies: ['@effect/sql-libsql'] },
+    { name: 'Effect SQL Cloudflare D1', type: 'tool', packageJSONDependencies: ['@effect/sql-d1'] },
+    { name: 'Effect SQL Cloudflare DO', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-do'] },
+    { name: 'Effect SQL Drizzle', type: 'tool', packageJSONDependencies: ['@effect/sql-drizzle'] },
+    { name: 'Effect SQL Kysely', type: 'tool', packageJSONDependencies: ['@effect/sql-kysely'] },
+
+    // Effect RPC (remote procedure calls)
     { name: 'Effect RPC', type: 'tool', packageJSONDependencies: ['@effect/rpc', '@effect/rpc-http'] },
-    { name: 'Effect Vitest', type: 'tool', packageJSONDependencies: ['@effect/vitest'] },
-    { name: 'Effect AI', type: 'tool', packageJSONDependencies: ['@effect/ai', '@effect/ai-openai', '@effect/ai-anthropic'] },
-    { name: 'Effect Opentelemetry', type: 'tool', packageJSONDependencies: ['@effect/opentelemetry'] },
+
+    // Effect AI (AI provider integrations)
+    { name: 'Effect AI', type: 'tool', packageJSONDependencies: ['@effect/ai'] },
+    { name: 'Effect AI OpenAI', type: 'tool', packageJSONDependencies: ['@effect/ai-openai'] },
+    { name: 'Effect AI Anthropic', type: 'tool', packageJSONDependencies: ['@effect/ai-anthropic'] },
+    { name: 'Effect AI Google', type: 'tool', packageJSONDependencies: ['@effect/ai-google'] },
+    { name: 'Effect AI Amazon Bedrock', type: 'tool', packageJSONDependencies: ['@effect/ai-amazon-bedrock'] },
+
+    // Effect Cluster (distributed computing)
     { name: 'Effect Cluster', type: 'tool', packageJSONDependencies: ['@effect/cluster'] },
-    { name: 'Effect Printer', type: 'tool', packageJSONDependencies: ['@effect/printer'] },
+    { name: 'Effect Cluster Node', type: 'tool', packageJSONDependencies: ['@effect/cluster-node'] },
+    { name: 'Effect Cluster Browser', type: 'tool', packageJSONDependencies: ['@effect/cluster-browser'] },
+    { name: 'Effect Cluster Workflow', type: 'tool', packageJSONDependencies: ['@effect/cluster-workflow'] },
+
+    // Effect CLI (command-line interfaces)
     { name: 'Effect CLI', type: 'tool', packageJSONDependencies: ['@effect/cli'] },
+
+    // Effect Testing
+    { name: 'Effect Vitest', type: 'tool', packageJSONDependencies: ['@effect/vitest'] },
+
+    // Effect Observability
+    { name: 'Effect OpenTelemetry', type: 'tool', packageJSONDependencies: ['@effect/opentelemetry'] },
+
+    // Effect Printer (pretty printing)
+    { name: 'Effect Printer', type: 'tool', packageJSONDependencies: ['@effect/printer'] },
+    { name: 'Effect Printer ANSI', type: 'tool', packageJSONDependencies: ['@effect/printer-ansi'] },
+
+    // Effect Experimental & Advanced
+    { name: 'Effect Experimental', type: 'tool', packageJSONDependencies: ['@effect/experimental'] },
+    { name: 'Effect Typeclass', type: 'tool', packageJSONDependencies: ['@effect/typeclass'] },
+
+    // Effect Build & Tooling
+    { name: 'Effect Build Utils', type: 'tool', packageJSONDependencies: ['@effect/build-utils'] },
+    { name: 'Effect Docgen', type: 'tool', packageJSONDependencies: ['@effect/docgen'] },
+    { name: 'Effect ESLint Plugin', type: 'tool', packageJSONDependencies: ['@effect/eslint-plugin'] },
+    { name: 'Effect Language Service', type: 'tool', packageJSONDependencies: ['@effect/language-service'] },
+
+    // Legacy/Internal Effect modules (still detect for completeness)
     { name: 'Effect STM', type: 'tool', packageJSONDependencies: ['@effect/stm'] },
     { name: 'Effect Stream', type: 'tool', packageJSONDependencies: ['@effect/stream'] },
     { name: 'Effect Match', type: 'tool', packageJSONDependencies: ['@effect/match'] },
-    { name: 'effect.website', type: 'tool', packageJSONDependencies: ['effect.website'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+
+    // --- PACKAGE MANAGERS ---
+    { name: 'pnpm', type: 'tool', files: ['pnpm-lock.yaml', 'pnpm-workspace.yaml', '.pnpmfile.cjs'], logo: "https://svgl.app/library/pnpm.svg" },
+    { name: 'npm', type: 'tool', files: ['package-lock.json', '.npmrc'], logo: "https://svgl.app/library/npm.svg" },
+    { name: 'Yarn', type: 'tool', files: ['yarn.lock', '.yarnrc', '.yarnrc.yml'], logo: "https://svgl.app/library/yarn.svg" },
+    { name: 'Bun', type: 'tool', files: ['bun.lockb', 'bun.lock', 'bunfig.toml'], logo: "https://svgl.app/library/bun.svg" },
+
+    // --- MONOREPO TOOLS ---
+    { name: 'Changesets', type: 'tool', files: ['.changeset'], packageJSONDependencies: ['@changesets/cli']},
+    { name: 'Lerna', type: 'tool', files: ['lerna.json'], packageJSONDependencies: ['lerna'] },
+    { name: 'Rush', type: 'tool', files: ['rush.json'], packageJSONDependencies: ['@microsoft/rush'] },
+
+    // --- TYPESCRIPT TOOLING ---
+    { name: 'TypeScript', type: 'language', files: ['tsconfig.json', 'tsconfig.build.json'], packageJSONDependencies: ['typescript'], extensions: ['.ts', '.tsx', '.mts', '.cts'], logo: "https://svgl.app/library/typescript.svg" },
+    { name: 'tsx', type: 'tool', packageJSONDependencies: ['tsx'] },
+    { name: 'ts-node', type: 'tool', packageJSONDependencies: ['ts-node'] },
+    { name: 'tsup', type: 'tool', files: ['tsup.config.ts'], packageJSONDependencies: ['tsup'] },
+    { name: 'tstyche', type: 'tool', packageJSONDependencies: ['tstyche'] },
+
+    // --- CODE QUALITY & ANALYSIS ---
+    { name: 'Madge', type: 'tool', packageJSONDependencies: ['madge'] },
+    { name: 'jscodeshift', type: 'tool', packageJSONDependencies: ['jscodeshift'] },
+
+    // --- VITE ECOSYSTEM ---
+    { name: 'Vite', type: 'tool', files: ['vite.config.ts', 'vite.config.js', 'vite.config.mts'], packageJSONDependencies: ['vite'], logo: "https://svgl.app/library/vitejs.svg" },
+    { name: 'Vitest', type: 'tool', files: ['vitest.config.ts', 'vitest.workspace.ts'], packageJSONDependencies: ['vitest'], logo: "https://svgl.app/library/vitest.svg" },
+    { name: 'Vitest Browser', type: 'tool', packageJSONDependencies: ['@vitest/browser'] },
+    { name: 'Vitest Coverage', type: 'tool', packageJSONDependencies: ['@vitest/coverage-v8', '@vitest/coverage-istanbul'] },
 
     // --- T3 STACK & MODERN TYPESAFE TOOLS ---
     { name: 'tRPC', type: 'tool', packageJSONDependencies: ['@trpc/server', '@trpc/client', '@trpc/react-query', '@trpc/next'], logo: { light: "https://svgl.app/library/trpc.svg", dark: "https://svgl.app/library/trpc.svg" } },
@@ -74,7 +158,7 @@ export const signatures: TechSignature[] = [
     { name: 'Hono', type: 'framework', packageJSONDependencies: ['hono'], logo: "https://svgl.app/library/hono.svg" },
     { name: 'Elysia', type: 'framework', packageJSONDependencies: ['elysia'], logo: "https://svgl.app/library/elysiajs.svg" },
     { name: 'TanStack Start', type: 'framework', packageJSONDependencies: ['@tanstack/start'], logo: "https://svgl.app/library/tanstack.svg" },
-    { name: 'Bun', type: 'tool', files: ['bun.lockb', 'bunfig.toml'], logo: "https://svgl.app/library/bun.svg" },
+
     { name: 'Deno', type: 'tool', files: ['deno.json', 'deno.jsonc'], logo: { light: "https://svgl.app/library/deno.svg", dark: "https://svgl.app/library/deno_dark.svg" } },
 
     // --- DATA & VALIDATION ---
@@ -182,7 +266,7 @@ export const signatures: TechSignature[] = [
 
     // --- TESTING ---
     { name: 'Jest', type: 'tool', files: ['jest.config.js'], packageJSONDependencies: ['jest'], logo: "https://svgl.app/library/jest.svg" },
-    { name: 'Vitest', type: 'tool', files: ['vitest.config.ts'], packageJSONDependencies: ['vitest'], logo: "https://svgl.app/library/vitest.svg" },
+
     { name: 'Cypress', type: 'tool', files: ['cypress.json', 'cypress.config.ts'], packageJSONDependencies: ['cypress'], logo: "https://svgl.app/library/cypress.svg" },
     { name: 'Playwright', type: 'tool', files: ['playwright.config.ts'], packageJSONDependencies: ['@playwright/test'], logo: "https://svgl.app/library/playwright.svg" },
     { name: 'Storybook', type: 'tool', files: ['.storybook'], packageJSONDependencies: ['storybook'], logo: "https://svgl.app/library/storybook.svg" },
