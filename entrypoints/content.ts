@@ -139,10 +139,18 @@ export default defineContentScript({
         });
       }
 
-      // 4. Deep Scan: Fetch key config files in parallel for dependency analysis
-      // We define a list of files to check and how to parse them
-      const configFiles = [
-        { name: 'package.json', parser: 'json', key: 'dependencies' }, // & devDependencies
+      // 4. Deep Scan: Fetch ALL package.json files for workspace/monorepo support
+      // Plus other config files for different ecosystems
+
+      // Find all package.json files in the repository (for monorepo/workspace support)
+      const packageJsonPaths = hasTreeData
+        ? allFilePaths.filter(p => p.endsWith('package.json'))
+        : ['package.json']; // Fallback to root only
+
+      console.log(`[GitStack] Found ${packageJsonPaths.length} package.json files to scan`);
+
+      // Other ecosystem config files (root only for these)
+      const otherConfigFiles = [
         { name: 'Cargo.toml', parser: 'text' },
         { name: 'go.mod', parser: 'text' },
         { name: 'pyproject.toml', parser: 'text' },
@@ -151,7 +159,22 @@ export default defineContentScript({
         { name: 'Gemfile', parser: 'text' },
       ];
 
-      const fetchPromises = configFiles.map(async (file) => {
+      // Fetch all package.json files in parallel (limit to first 20 to avoid rate limits)
+      const packageJsonsToFetch = packageJsonPaths.slice(0, 20);
+      const packageJsonPromises = packageJsonsToFetch.map(async (filePath) => {
+        try {
+          const fileUrl = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${filePath}`;
+          const res = await fetch(fileUrl);
+          if (!res.ok) return null;
+          const text = await res.text();
+          return { name: filePath, content: text, parser: 'json' };
+        } catch (e) {
+          return null;
+        }
+      });
+
+      // Fetch other config files
+      const otherConfigPromises = otherConfigFiles.map(async (file) => {
         try {
           const fileUrl = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${file.name}`;
           const res = await fetch(fileUrl);
@@ -163,7 +186,8 @@ export default defineContentScript({
         }
       });
 
-      const results = await Promise.allSettled(fetchPromises);
+      const allFetchPromises = [...packageJsonPromises, ...otherConfigPromises];
+      const results = await Promise.allSettled(allFetchPromises);
 
       const dependencySet = new Set<string>();
 
@@ -175,17 +199,30 @@ export default defineContentScript({
             try {
               const json = JSON.parse(content);
               // Merging common dependency keys
-              const deps = { ...json.dependencies, ...json.devDependencies, ...json.peerDependencies, ...json['require-dev'], ...json.require };
+              const deps = {
+                ...json.dependencies,
+                ...json.devDependencies,
+                ...json.peerDependencies,
+                ...json.optionalDependencies,
+                ...json['require-dev'],
+                ...json.require
+              };
               Object.keys(deps).forEach(d => dependencySet.add(d));
+
+              // Also check for workspace packages (to detect internal packages)
+              if (json.name && json.name.startsWith('@')) {
+                dependencySet.add(json.name);
+              }
             } catch (e) {/* ignore json error */ }
           } else {
             // For text files like Cargo.toml or requirements.txt, we do a simpler substring/regex check
             // This is a heuristic: if the package name appears in the file, we count it.
-            // We can be stricter (e.g., regex for `name = "..."` in toml), but for now simple inclusion is robust enough for detection.
             dependencySet.add('__TEXT_CONTENT__' + content);
           }
         }
       });
+
+      console.log(`[GitStack] Collected ${dependencySet.size} unique dependencies from all package.json files`);
 
       // Match against signatures
       signatures.forEach(sig => {

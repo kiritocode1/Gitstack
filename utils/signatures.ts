@@ -9,6 +9,7 @@ export interface TechSignature {
 
 export const signatures: TechSignature[] = [
     // --- THE EFFECT ECOSYSTEM (effect.website) - COMPREHENSIVE COVERAGE ---
+    // Shared logo for all Effect packages
     // Core Effect
     { name: 'Effect', type: 'framework', packageJSONDependencies: ['effect'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
@@ -16,70 +17,70 @@ export const signatures: TechSignature[] = [
     { name: 'Effect Schema', type: 'tool', packageJSONDependencies: ['@effect/schema'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Effect Platform (cross-runtime abstractions)
-    { name: 'Effect Platform', type: 'tool', packageJSONDependencies: ['@effect/platform'] },
-    { name: 'Effect Platform Node', type: 'tool', packageJSONDependencies: ['@effect/platform-node', '@effect/platform-node-shared'] },
-    { name: 'Effect Platform Browser', type: 'tool', packageJSONDependencies: ['@effect/platform-browser'] },
-    { name: 'Effect Platform Bun', type: 'tool', packageJSONDependencies: ['@effect/platform-bun'] },
+    { name: 'Effect Platform', type: 'tool', packageJSONDependencies: ['@effect/platform'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect Platform Node', type: 'tool', packageJSONDependencies: ['@effect/platform-node', '@effect/platform-node-shared'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect Platform Browser', type: 'tool', packageJSONDependencies: ['@effect/platform-browser'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect Platform Bun', type: 'tool', packageJSONDependencies: ['@effect/platform-bun'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Effect SQL (database integrations)
-    { name: 'Effect SQL', type: 'tool', packageJSONDependencies: ['@effect/sql'] },
-    { name: 'Effect SQL PostgreSQL', type: 'tool', packageJSONDependencies: ['@effect/sql-pg'] },
-    { name: 'Effect SQL MySQL', type: 'tool', packageJSONDependencies: ['@effect/sql-mysql2'] },
-    { name: 'Effect SQL SQLite Node', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-node'] },
-    { name: 'Effect SQL SQLite Bun', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-bun'] },
-    { name: 'Effect SQL SQLite WASM', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-wasm'] },
-    { name: 'Effect SQL SQLite React Native', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-react-native'] },
-    { name: 'Effect SQL ClickHouse', type: 'tool', packageJSONDependencies: ['@effect/sql-clickhouse'] },
-    { name: 'Effect SQL MSSQL', type: 'tool', packageJSONDependencies: ['@effect/sql-mssql'] },
-    { name: 'Effect SQL LibSQL', type: 'tool', packageJSONDependencies: ['@effect/sql-libsql'] },
-    { name: 'Effect SQL Cloudflare D1', type: 'tool', packageJSONDependencies: ['@effect/sql-d1'] },
-    { name: 'Effect SQL Cloudflare DO', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-do'] },
-    { name: 'Effect SQL Drizzle', type: 'tool', packageJSONDependencies: ['@effect/sql-drizzle'] },
-    { name: 'Effect SQL Kysely', type: 'tool', packageJSONDependencies: ['@effect/sql-kysely'] },
+    { name: 'Effect SQL', type: 'tool', packageJSONDependencies: ['@effect/sql'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL PostgreSQL', type: 'tool', packageJSONDependencies: ['@effect/sql-pg'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL MySQL', type: 'tool', packageJSONDependencies: ['@effect/sql-mysql2'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL SQLite Node', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-node'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL SQLite Bun', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-bun'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL SQLite WASM', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-wasm'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL SQLite React Native', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-react-native'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL ClickHouse', type: 'tool', packageJSONDependencies: ['@effect/sql-clickhouse'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL MSSQL', type: 'tool', packageJSONDependencies: ['@effect/sql-mssql'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL LibSQL', type: 'tool', packageJSONDependencies: ['@effect/sql-libsql'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL Cloudflare D1', type: 'tool', packageJSONDependencies: ['@effect/sql-d1'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL Cloudflare DO', type: 'tool', packageJSONDependencies: ['@effect/sql-sqlite-do'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL Drizzle', type: 'tool', packageJSONDependencies: ['@effect/sql-drizzle'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect SQL Kysely', type: 'tool', packageJSONDependencies: ['@effect/sql-kysely'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Effect RPC (remote procedure calls)
-    { name: 'Effect RPC', type: 'tool', packageJSONDependencies: ['@effect/rpc', '@effect/rpc-http'] },
+    { name: 'Effect RPC', type: 'tool', packageJSONDependencies: ['@effect/rpc', '@effect/rpc-http'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Effect AI (AI provider integrations)
-    { name: 'Effect AI', type: 'tool', packageJSONDependencies: ['@effect/ai'] },
-    { name: 'Effect AI OpenAI', type: 'tool', packageJSONDependencies: ['@effect/ai-openai'] },
-    { name: 'Effect AI Anthropic', type: 'tool', packageJSONDependencies: ['@effect/ai-anthropic'] },
-    { name: 'Effect AI Google', type: 'tool', packageJSONDependencies: ['@effect/ai-google'] },
-    { name: 'Effect AI Amazon Bedrock', type: 'tool', packageJSONDependencies: ['@effect/ai-amazon-bedrock'] },
+    { name: 'Effect AI', type: 'tool', packageJSONDependencies: ['@effect/ai'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect AI OpenAI', type: 'tool', packageJSONDependencies: ['@effect/ai-openai'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect AI Anthropic', type: 'tool', packageJSONDependencies: ['@effect/ai-anthropic'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect AI Google', type: 'tool', packageJSONDependencies: ['@effect/ai-google'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect AI Amazon Bedrock', type: 'tool', packageJSONDependencies: ['@effect/ai-amazon-bedrock'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Effect Cluster (distributed computing)
-    { name: 'Effect Cluster', type: 'tool', packageJSONDependencies: ['@effect/cluster'] },
-    { name: 'Effect Cluster Node', type: 'tool', packageJSONDependencies: ['@effect/cluster-node'] },
-    { name: 'Effect Cluster Browser', type: 'tool', packageJSONDependencies: ['@effect/cluster-browser'] },
-    { name: 'Effect Cluster Workflow', type: 'tool', packageJSONDependencies: ['@effect/cluster-workflow'] },
+    { name: 'Effect Cluster', type: 'tool', packageJSONDependencies: ['@effect/cluster'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect Cluster Node', type: 'tool', packageJSONDependencies: ['@effect/cluster-node'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect Cluster Browser', type: 'tool', packageJSONDependencies: ['@effect/cluster-browser'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect Cluster Workflow', type: 'tool', packageJSONDependencies: ['@effect/cluster-workflow'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Effect CLI (command-line interfaces)
-    { name: 'Effect CLI', type: 'tool', packageJSONDependencies: ['@effect/cli'] },
+    { name: 'Effect CLI', type: 'tool', packageJSONDependencies: ['@effect/cli'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Effect Testing
-    { name: 'Effect Vitest', type: 'tool', packageJSONDependencies: ['@effect/vitest'] },
+    { name: 'Effect Vitest', type: 'tool', packageJSONDependencies: ['@effect/vitest'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Effect Observability
-    { name: 'Effect OpenTelemetry', type: 'tool', packageJSONDependencies: ['@effect/opentelemetry'] },
+    { name: 'Effect OpenTelemetry', type: 'tool', packageJSONDependencies: ['@effect/opentelemetry'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Effect Printer (pretty printing)
-    { name: 'Effect Printer', type: 'tool', packageJSONDependencies: ['@effect/printer'] },
-    { name: 'Effect Printer ANSI', type: 'tool', packageJSONDependencies: ['@effect/printer-ansi'] },
+    { name: 'Effect Printer', type: 'tool', packageJSONDependencies: ['@effect/printer'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect Printer ANSI', type: 'tool', packageJSONDependencies: ['@effect/printer-ansi'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Effect Experimental & Advanced
-    { name: 'Effect Experimental', type: 'tool', packageJSONDependencies: ['@effect/experimental'] },
-    { name: 'Effect Typeclass', type: 'tool', packageJSONDependencies: ['@effect/typeclass'] },
+    { name: 'Effect Experimental', type: 'tool', packageJSONDependencies: ['@effect/experimental'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect Typeclass', type: 'tool', packageJSONDependencies: ['@effect/typeclass'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Effect Build & Tooling
-    { name: 'Effect Build Utils', type: 'tool', packageJSONDependencies: ['@effect/build-utils'] },
-    { name: 'Effect Docgen', type: 'tool', packageJSONDependencies: ['@effect/docgen'] },
-    { name: 'Effect ESLint Plugin', type: 'tool', packageJSONDependencies: ['@effect/eslint-plugin'] },
-    { name: 'Effect Language Service', type: 'tool', packageJSONDependencies: ['@effect/language-service'] },
+    { name: 'Effect Build Utils', type: 'tool', packageJSONDependencies: ['@effect/build-utils'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect Docgen', type: 'tool', packageJSONDependencies: ['@effect/docgen'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect ESLint Plugin', type: 'tool', packageJSONDependencies: ['@effect/eslint-plugin'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect Language Service', type: 'tool', packageJSONDependencies: ['@effect/language-service'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Legacy/Internal Effect modules (still detect for completeness)
-    { name: 'Effect STM', type: 'tool', packageJSONDependencies: ['@effect/stm'] },
-    { name: 'Effect Stream', type: 'tool', packageJSONDependencies: ['@effect/stream'] },
-    { name: 'Effect Match', type: 'tool', packageJSONDependencies: ['@effect/match'] },
+    { name: 'Effect STM', type: 'tool', packageJSONDependencies: ['@effect/stm'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect Stream', type: 'tool', packageJSONDependencies: ['@effect/stream'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect Match', type: 'tool', packageJSONDependencies: ['@effect/match'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // --- PACKAGE MANAGERS ---
     { name: 'pnpm', type: 'tool', files: ['pnpm-lock.yaml', 'pnpm-workspace.yaml', '.pnpmfile.cjs'], logo: "https://svgl.app/library/pnpm.svg" },
@@ -88,7 +89,7 @@ export const signatures: TechSignature[] = [
     { name: 'Bun', type: 'tool', files: ['bun.lockb', 'bun.lock', 'bunfig.toml'], logo: "https://svgl.app/library/bun.svg" },
 
     // --- MONOREPO TOOLS ---
-    { name: 'Changesets', type: 'tool', files: ['.changeset'], packageJSONDependencies: ['@changesets/cli']},
+    { name: 'Changesets', type: 'tool', files: ['.changeset'], packageJSONDependencies: ['@changesets/cli'] },
     { name: 'Lerna', type: 'tool', files: ['lerna.json'], packageJSONDependencies: ['lerna'] },
     { name: 'Rush', type: 'tool', files: ['rush.json'], packageJSONDependencies: ['@microsoft/rush'] },
 
