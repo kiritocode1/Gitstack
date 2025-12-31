@@ -208,16 +208,49 @@ export default defineContentScript({
       if (pathParts.length < 2) return; // Not a repo view
       const [owner, repo] = pathParts;
 
-      // Show loading state immediately
-      injectLoadingState('Scanning repository...');
+      const cacheKey = `gitstack-cache-${owner}-${repo}`;
+      const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+      // Check localStorage for cached results
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const { techs, timestamp } = JSON.parse(cached);
+          const age = Date.now() - timestamp;
+
+          // If cache is fresh enough, show immediately
+          if (age < CACHE_TTL && techs.length > 0) {
+            console.log('[GitStack] Showing cached results', techs.length, 'technologies');
+            injectSidebar(techs);
+
+            // Still refresh in background if cache is older than 2 minutes
+            if (age > 2 * 60 * 1000) {
+              console.log('[GitStack] Background refresh triggered');
+              performScan(owner, repo, cacheKey, false);
+            }
+            return;
+          }
+        }
+      } catch (e) {
+        console.log('[GitStack] Cache read error', e);
+      }
+
+      // No valid cache, perform full scan with loading UI
+      await performScan(owner, repo, cacheKey, true);
+    };
+
+    const performScan = async (owner: string, repo: string, cacheKey: string, showLoading: boolean) => {
+      if (showLoading) {
+        injectLoadingState('Scanning repository...');
+      }
 
       const detectedSet = new Set<string>();
 
       // 2. Fetch full repository tree for deep scanning
-      updateLoadingProgress(20, 'Fetching file tree...');
+      if (showLoading) updateLoadingProgress(20, 'Fetching file tree...');
       const allFilePaths = await fetchRepoTree(owner, repo);
       const hasTreeData = allFilePaths.length > 0;
-      updateLoadingProgress(40, `Found ${allFilePaths.length} files...`);
+      if (showLoading) updateLoadingProgress(40, `Found ${allFilePaths.length} files...`);
 
       // 3. Scan using tree data (deep) or fall back to visible files (shallow)
       if (hasTreeData) {
@@ -266,7 +299,7 @@ export default defineContentScript({
         : ['package.json']; // Fallback to root only
 
       console.log(`[GitStack] Found ${packageJsonPaths.length} package.json files to scan`);
-      updateLoadingProgress(60, `Fetching ${Math.min(packageJsonPaths.length, 20)} package files...`);
+      if (showLoading) updateLoadingProgress(60, `Fetching ${Math.min(packageJsonPaths.length, 20)} package files...`);
 
       // Other ecosystem config files (root only for these)
       const otherConfigFiles = [
@@ -342,7 +375,7 @@ export default defineContentScript({
       });
 
       console.log(`[GitStack] Collected ${dependencySet.size} unique dependencies from all package.json files`);
-      updateLoadingProgress(80, 'Analyzing dependencies...');
+      if (showLoading) updateLoadingProgress(80, 'Analyzing dependencies...');
 
       // Match against signatures
       signatures.forEach(sig => {
@@ -366,15 +399,29 @@ export default defineContentScript({
         }
       });
 
-      updateLoadingProgress(100, `Found ${detectedSet.size} technologies!`);
+      const techsArray = Array.from(detectedSet);
 
-      // Small delay to show the completion message, then replace with actual sidebar
-      await new Promise(resolve => setTimeout(resolve, 300));
-      removeLoadingState();
+      // Save to localStorage cache
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify({
+          techs: techsArray,
+          timestamp: Date.now()
+        }));
+        console.log('[GitStack] Cached', techsArray.length, 'technologies');
+      } catch (e) {
+        console.log('[GitStack] Cache write error', e);
+      }
+
+      if (showLoading) {
+        updateLoadingProgress(100, `Found ${detectedSet.size} technologies!`);
+        // Small delay to show the completion message, then replace with actual sidebar
+        await new Promise(resolve => setTimeout(resolve, 300));
+        removeLoadingState();
+      }
 
       // 4. Inject into Sidebar
       if (detectedSet.size > 0) {
-        injectSidebar(Array.from(detectedSet));
+        injectSidebar(techsArray);
       }
     };
 
