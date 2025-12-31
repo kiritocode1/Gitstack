@@ -110,15 +110,6 @@ function injectLoadingState(message: string) {
   const heading = document.createElement('h2');
   heading.className = 'h4 mb-3';
   heading.textContent = 'Tech Stack';
-  heading.style.display = 'flex';
-  heading.style.alignItems = 'center';
-  heading.style.gap = '8px';
-
-  // Loading spinner
-  const spinner = document.createElement('span');
-  spinner.innerHTML = '⏳';
-  spinner.style.animation = 'spin 1s linear infinite';
-  heading.appendChild(spinner);
 
   // Progress container
   const progressContainer = document.createElement('div');
@@ -377,11 +368,13 @@ export default defineContentScript({
 
       updateLoadingProgress(100, `Found ${detectedSet.size} technologies!`);
 
+      // Small delay to show the completion message, then replace with actual sidebar
+      await new Promise(resolve => setTimeout(resolve, 300));
+      removeLoadingState();
+
       // 4. Inject into Sidebar
       if (detectedSet.size > 0) {
         injectSidebar(Array.from(detectedSet));
-      } else {
-        removeLoadingState();
       }
     };
 
