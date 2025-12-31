@@ -1,6 +1,26 @@
+export type TechCategory =
+    | 'Effect'
+    | 'Framework'
+    | 'Language'
+    | 'Styling & UI'
+    | 'Database & ORM'
+    | 'Authentication'
+    | 'API & Backend'
+    | 'State Management'
+    | 'Testing'
+    | 'Build Tools'
+    | 'AI & ML'
+    | 'DevOps & Infra'
+    | 'Package Manager'
+    | 'CMS'
+    | 'Animation & 3D'
+    | 'Analytics'
+    | 'Other';
+
 export interface TechSignature {
     name: string;
     type: 'framework' | 'language' | 'tool' | 'infrastructure';
+    category?: TechCategory; // Optional - used for grouping in UI
     files?: string[];      // Exact filename matches (e.g., "Dockerfile")
     extensions?: string[]; // Extension matches (e.g., ".tf")
     packageJSONDependencies?: string[]; // NPM package names to match in package.json
@@ -11,7 +31,7 @@ export const signatures: TechSignature[] = [
     // --- THE EFFECT ECOSYSTEM (effect.website) - COMPREHENSIVE COVERAGE ---
     // Shared logo for all Effect packages
     // Core Effect
-    { name: 'Effect', type: 'framework', packageJSONDependencies: ['effect'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
+    { name: 'Effect', type: 'framework', category: 'Effect', packageJSONDependencies: ['effect'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
 
     // Effect Schema (data validation & transformation)
     { name: 'Effect Schema', type: 'tool', packageJSONDependencies: ['@effect/schema'], logo: { light: "https://svgl.app/library/effect_light.svg", dark: "https://svgl.app/library/effect_dark.svg" } },
