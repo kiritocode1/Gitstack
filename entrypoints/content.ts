@@ -84,6 +84,128 @@ function matchesExtension(filePaths: string[], extension: string): boolean {
   return filePaths.some(path => path.endsWith(extension));
 }
 
+// Loading state management
+const LOADING_SIDEBAR_ID = 'github-ext-loading-sidebar';
+
+function injectLoadingState(message: string) {
+  // Check if already exists
+  if (document.getElementById(LOADING_SIDEBAR_ID)) {
+    updateLoadingProgress(0, message);
+    return;
+  }
+
+  const borderGrid = document.querySelector('.Layout-sidebar .BorderGrid');
+  if (!borderGrid) return;
+
+  const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark' ||
+    (document.documentElement.getAttribute('data-color-mode') === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  const section = document.createElement('div');
+  section.id = LOADING_SIDEBAR_ID;
+  section.className = 'BorderGrid-row';
+
+  const cell = document.createElement('div');
+  cell.className = 'BorderGrid-cell';
+
+  const heading = document.createElement('h2');
+  heading.className = 'h4 mb-3';
+  heading.textContent = 'Tech Stack';
+  heading.style.display = 'flex';
+  heading.style.alignItems = 'center';
+  heading.style.gap = '8px';
+
+  // Loading spinner
+  const spinner = document.createElement('span');
+  spinner.innerHTML = '⏳';
+  spinner.style.animation = 'spin 1s linear infinite';
+  heading.appendChild(spinner);
+
+  // Progress container
+  const progressContainer = document.createElement('div');
+  progressContainer.style.marginTop = '12px';
+
+  // Progress bar background
+  const progressBg = document.createElement('div');
+  progressBg.style.width = '100%';
+  progressBg.style.height = '4px';
+  progressBg.style.borderRadius = '2px';
+  progressBg.style.backgroundColor = isDark ? 'rgba(110, 118, 129, 0.3)' : '#e1e4e8';
+  progressBg.style.overflow = 'hidden';
+
+  // Progress bar fill
+  const progressFill = document.createElement('div');
+  progressFill.id = 'github-ext-progress-fill';
+  progressFill.style.width = '0%';
+  progressFill.style.height = '100%';
+  progressFill.style.borderRadius = '2px';
+  progressFill.style.background = 'linear-gradient(90deg, #238636, #2ea043, #238636)';
+  progressFill.style.backgroundSize = '200% 100%';
+  progressFill.style.animation = 'shimmer 1.5s ease-in-out infinite';
+  progressFill.style.transition = 'width 0.3s ease';
+
+  // Status message
+  const statusMsg = document.createElement('div');
+  statusMsg.id = 'github-ext-status-msg';
+  statusMsg.textContent = message;
+  statusMsg.style.marginTop = '8px';
+  statusMsg.style.fontSize = '12px';
+  statusMsg.style.color = isDark ? '#8b949e' : '#586069';
+
+  progressBg.appendChild(progressFill);
+  progressContainer.appendChild(progressBg);
+  progressContainer.appendChild(statusMsg);
+
+  cell.appendChild(heading);
+  cell.appendChild(progressContainer);
+  section.appendChild(cell);
+
+  // Add CSS animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  section.appendChild(style);
+
+  // Insert at the top
+  const languageHeader = Array.from(borderGrid.querySelectorAll('h2')).find(h => h.textContent === 'Languages');
+  if (languageHeader) {
+    const languageRow = languageHeader.closest('.BorderGrid-row');
+    if (languageRow && languageRow.nextSibling) {
+      borderGrid.insertBefore(section, languageRow.nextSibling);
+    } else {
+      borderGrid.appendChild(section);
+    }
+  } else {
+    borderGrid.insertBefore(section, borderGrid.firstChild);
+  }
+}
+
+function updateLoadingProgress(percent: number, message: string) {
+  const progressFill = document.getElementById('github-ext-progress-fill');
+  const statusMsg = document.getElementById('github-ext-status-msg');
+
+  if (progressFill) {
+    progressFill.style.width = `${percent}%`;
+  }
+  if (statusMsg) {
+    statusMsg.textContent = message;
+  }
+}
+
+function removeLoadingState() {
+  const loadingSection = document.getElementById(LOADING_SIDEBAR_ID);
+  if (loadingSection) {
+    loadingSection.remove();
+  }
+}
+
 export default defineContentScript({
   matches: ['*://github.com/*'],
   main() {
@@ -95,11 +217,16 @@ export default defineContentScript({
       if (pathParts.length < 2) return; // Not a repo view
       const [owner, repo] = pathParts;
 
+      // Show loading state immediately
+      injectLoadingState('Scanning repository...');
+
       const detectedSet = new Set<string>();
 
       // 2. Fetch full repository tree for deep scanning
+      updateLoadingProgress(20, 'Fetching file tree...');
       const allFilePaths = await fetchRepoTree(owner, repo);
       const hasTreeData = allFilePaths.length > 0;
+      updateLoadingProgress(40, `Found ${allFilePaths.length} files...`);
 
       // 3. Scan using tree data (deep) or fall back to visible files (shallow)
       if (hasTreeData) {
@@ -148,6 +275,7 @@ export default defineContentScript({
         : ['package.json']; // Fallback to root only
 
       console.log(`[GitStack] Found ${packageJsonPaths.length} package.json files to scan`);
+      updateLoadingProgress(60, `Fetching ${Math.min(packageJsonPaths.length, 20)} package files...`);
 
       // Other ecosystem config files (root only for these)
       const otherConfigFiles = [
@@ -223,6 +351,7 @@ export default defineContentScript({
       });
 
       console.log(`[GitStack] Collected ${dependencySet.size} unique dependencies from all package.json files`);
+      updateLoadingProgress(80, 'Analyzing dependencies...');
 
       // Match against signatures
       signatures.forEach(sig => {
@@ -246,9 +375,13 @@ export default defineContentScript({
         }
       });
 
+      updateLoadingProgress(100, `Found ${detectedSet.size} technologies!`);
+
       // 4. Inject into Sidebar
       if (detectedSet.size > 0) {
         injectSidebar(Array.from(detectedSet));
+      } else {
+        removeLoadingState();
       }
     };
 
