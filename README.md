@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/kiritocode1/gitstack/releases">
-    <img src="https://img.shields.io/badge/version-1.0.1-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-1.0.2-blue.svg" alt="Version">
   </a>
 </p>
 
@@ -17,6 +17,8 @@
 <br>
 
 <!-- Add demo video/gif here once compressed -->
+
+![profile-gif](result.gif)
 
 <br>
 
@@ -29,6 +31,7 @@ This extension does that for you. Instantly.
 ## Features
 
 - 🔍 **Deep scanning** - Fetches full repository tree via GitHub API, not just visible files
+- 👤 **Profile tech stack** - Aggregates technologies across all public repos on profile pages
 - 📦 **100+ signatures** - Frameworks, languages, databases, build tools, and more
 - 🎨 **Native UI** - Injects directly into GitHub's sidebar, respects dark/light mode
 - ⚡️ **Fast** - Results cached locally, instant on repeat visits

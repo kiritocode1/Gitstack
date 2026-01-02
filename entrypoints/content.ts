@@ -202,6 +202,40 @@ export default defineContentScript({
   main() {
     console.log('GitHub Stack Detector Loaded');
 
+    // Reserved GitHub paths that are NOT user profiles or repos
+    const RESERVED_PATHS = [
+      'settings', 'notifications', 'organizations', 'orgs', 'search',
+      'marketplace', 'explore', 'topics', 'trending', 'collections',
+      'events', 'sponsors', 'about', 'pricing', 'features', 'enterprise',
+      'team', 'security', 'customer-stories', 'readme', 'new', 'codespaces',
+      'discussions', 'users', 'login', 'signup', 'join', 'pulls', 'issues',
+      'stars', 'watching', 'repositories', 'projects', 'packages', 'people'
+    ];
+
+    // Helper to check if current page is a repository page
+    const isRepoPage = () => {
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      if (pathParts.length < 2) return false;
+      const [owner] = pathParts;
+      return !RESERVED_PATHS.includes(owner.toLowerCase());
+    };
+
+    // Helper to check if current page is a profile page
+    const isProfilePage = () => {
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      if (pathParts.length !== 1) return false;
+      const username = pathParts[0];
+      if (RESERVED_PATHS.includes(username.toLowerCase())) return false;
+      if (username.startsWith('.') || username.includes('?')) return false;
+      return true;
+    };
+
+    // Early exit if not on a repository or profile page
+    if (!isRepoPage() && !isProfilePage()) {
+      console.log('[GitStack] Not a repository or profile page, skipping');
+      return;
+    }
+
     const scanAndDisplay = async () => {
       // 1. Identify Repo context
       const pathParts = window.location.pathname.split('/').filter(Boolean);
@@ -425,16 +459,23 @@ export default defineContentScript({
       }
     };
 
-    // Debounce/Navigation handling
+    // Debounce/Navigation handling - only rescan when URL actually changes
     let timeout: NodeJS.Timeout;
+    let lastPath = window.location.pathname;
+
     const observer = new MutationObserver(() => {
-      clearTimeout(timeout);
-      timeout = setTimeout(scanAndDisplay, 1000); // Give React time to render
+      const currentPath = window.location.pathname;
+      // Only trigger rescan if the path actually changed (navigation occurred)
+      if (currentPath !== lastPath) {
+        lastPath = currentPath;
+        clearTimeout(timeout);
+        timeout = setTimeout(scanAndDisplay, 1000); // Give React time to render
+      }
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Initial scan
+    // Initial scan for repo pages
     setTimeout(scanAndDisplay, 1000);
 
     // Start profile page feature
@@ -932,10 +973,12 @@ async function fetchLogo(techName: string, isDark: boolean): Promise<string | nu
 
 const PROFILE_SIDEBAR_ID = 'github-ext-profile-stack';
 const PROFILE_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
-const MAX_QUICK_SCAN_REPOS = 5;
+
+// Track usernames we've already scanned to prevent infinite loops
+const scannedProfileUsernames = new Set<string>();
 
 // Reserved GitHub paths that are NOT user profiles
-const RESERVED_PATHS = [
+const PROFILE_RESERVED_PATHS = [
   'explore', 'topics', 'trending', 'collections', 'events',
   'sponsors', 'about', 'pricing', 'features', 'enterprise',
   'team', 'security', 'customer-stories', 'readme', 'new',
@@ -944,18 +987,27 @@ const RESERVED_PATHS = [
   'search', 'login', 'signup', 'join', 'stars', 'watching', 'repositories'
 ];
 
-function isProfilePage(): boolean {
+function isProfilePageCheck(): boolean {
   const parts = location.pathname.split('/').filter(Boolean);
-  // Profile: exactly one segment, not a reserved path, not containing special chars
   if (parts.length !== 1) return false;
   const username = parts[0];
-  if (RESERVED_PATHS.includes(username.toLowerCase())) return false;
+  if (PROFILE_RESERVED_PATHS.includes(username.toLowerCase())) return false;
   if (username.startsWith('.') || username.includes('?')) return false;
   return true;
 }
 
+function getProfileSidebar(): Element | null {
+  const sidebars = document.querySelectorAll('.Layout-sidebar');
+  for (const sidebar of sidebars) {
+    if (sidebar.querySelector('.h-card')) {
+      return sidebar;
+    }
+  }
+  return sidebars[sidebars.length - 1] || null;
+}
+
 function getProfileUsername(): string | null {
-  if (!isProfilePage()) return null;
+  if (!isProfilePageCheck()) return null;
   return location.pathname.split('/').filter(Boolean)[0];
 }
 
@@ -971,7 +1023,7 @@ interface RepoInfo {
 async function fetchUserRepos(username: string): Promise<RepoInfo[]> {
   const repos: RepoInfo[] = [];
   let page = 1;
-  const maxPages = 3; // Limit to 300 repos max
+  const maxPages = 3;
 
   try {
     while (page <= maxPages) {
@@ -982,97 +1034,91 @@ async function fetchUserRepos(username: string): Promise<RepoInfo[]> {
       const data = await res.json();
       if (!Array.isArray(data) || data.length === 0) break;
       repos.push(...data);
-      if (data.length < 100) break; // Last page
+      if (data.length < 100) break;
       page++;
     }
   } catch (e) {
-    console.warn('[GitStack] Failed to fetch repos for', username, e);
+    console.warn('[GitStack] Error fetching repos:', e);
   }
 
-  console.log(`[GitStack] Found ${repos.length} repos for ${username}`);
   return repos;
+}
+
+function getUncachedRepos(repos: RepoInfo[]): RepoInfo[] {
+  return repos.filter(repo => {
+    const cacheKey = `gitstack-cache-${repo.owner.login}-${repo.name}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (!cached) return true;
+    try {
+      const { timestamp } = JSON.parse(cached);
+      return Date.now() - timestamp > PROFILE_CACHE_TTL;
+    } catch {
+      return true;
+    }
+  });
 }
 
 function aggregateFromCache(repos: RepoInfo[]): { techs: string[], cachedCount: number } {
   const allTechs = new Set<string>();
   let cachedCount = 0;
 
-  for (const repo of repos) {
+  repos.forEach(repo => {
     const cacheKey = `gitstack-cache-${repo.owner.login}-${repo.name}`;
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
         const { techs, timestamp } = JSON.parse(cached);
-        const age = Date.now() - timestamp;
-        // Use cache if less than 1 hour old
-        if (age < 60 * 60 * 1000 && Array.isArray(techs)) {
+        if (Date.now() - timestamp < PROFILE_CACHE_TTL && Array.isArray(techs)) {
           techs.forEach((t: string) => allTechs.add(t));
           cachedCount++;
         }
-      }
-    } catch (e) {
-      // Ignore cache read errors
+      } catch { }
     }
-  }
+  });
 
   return { techs: Array.from(allTechs), cachedCount };
 }
 
-function getUncachedRepos(repos: RepoInfo[]): RepoInfo[] {
-  return repos.filter(repo => {
-    const cacheKey = `gitstack-cache-${repo.owner.login}-${repo.name}`;
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const { timestamp } = JSON.parse(cached);
-        return Date.now() - timestamp > 60 * 60 * 1000; // Stale if > 1 hour
-      }
-    } catch (e) { }
-    return true; // Not cached
-  });
-}
-
 async function scanRepoQuick(repo: RepoInfo): Promise<string[]> {
-  const { owner, name } = repo;
-  const detectedSet = new Set<string>();
+  const cacheKey = `gitstack-cache-${repo.owner.login}-${repo.name}`;
 
   try {
-    // Fetch tree
-    const treePaths = await fetchRepoTree(owner.login, name);
-
-    if (treePaths.length > 0) {
-      signatures.forEach(sig => {
-        if (sig.files && sig.files.some(f => matchesFilePattern(treePaths, f))) {
-          detectedSet.add(sig.name);
-        }
-        if (sig.extensions && sig.extensions.some(ext => matchesExtension(treePaths, ext))) {
-          detectedSet.add(sig.name);
-        }
-      });
-
-      // Quick package.json check (root only for speed)
-      const packageJsonPaths = treePaths.filter(p => p === 'package.json' || p.endsWith('/package.json')).slice(0, 3);
-      for (const filePath of packageJsonPaths) {
-        try {
-          const res = await fetch(`https://raw.githubusercontent.com/${owner.login}/${name}/HEAD/${filePath}`);
-          if (res.ok) {
-            const text = await res.text();
-            const json = JSON.parse(text);
-            const deps = { ...json.dependencies, ...json.devDependencies };
-            signatures.forEach(sig => {
-              if (sig.packageJSONDependencies?.some(dep => deps[dep])) {
-                detectedSet.add(sig.name);
-              }
-            });
-          }
-        } catch (e) { }
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      const { techs, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < PROFILE_CACHE_TTL) {
+        return techs;
       }
     }
+  } catch { }
 
-    // Cache result
+  try {
+    const treeRes = await fetch(
+      `https://api.github.com/repos/${repo.full_name}/git/trees/${repo.default_branch}?recursive=1`
+    );
+    if (!treeRes.ok) return [];
+
+    const treeData = await treeRes.json();
+    const paths: string[] = treeData.tree?.map((item: any) => item.path) || [];
+
+    const detectedSet = new Set<string>();
+    const { signatures } = await import('../utils/signatures');
+
+    signatures.forEach(sig => {
+      if (sig.files?.some(f => paths.some(p => p.endsWith(f) || p === f))) {
+        detectedSet.add(sig.name);
+      }
+      if (sig.extensions?.some(ext => paths.some(p => p.endsWith(ext)))) {
+        detectedSet.add(sig.name);
+      }
+    });
+
     const techsArray = Array.from(detectedSet);
-    const cacheKey = `gitstack-cache-${owner.login}-${name}`;
-    localStorage.setItem(cacheKey, JSON.stringify({ techs: techsArray, timestamp: Date.now() }));
+
+    localStorage.setItem(cacheKey, JSON.stringify({
+      techs: techsArray,
+      timestamp: Date.now()
+    }));
 
     return techsArray;
   } catch (e) {
@@ -1084,7 +1130,6 @@ async function scanRepoQuick(repo: RepoInfo): Promise<string[]> {
 async function scanAndDisplayProfile(username: string) {
   const profileCacheKey = `gitstack-profile-${username}`;
 
-  // Check profile-level cache
   try {
     const cached = localStorage.getItem(profileCacheKey);
     if (cached) {
@@ -1097,39 +1142,31 @@ async function scanAndDisplayProfile(username: string) {
     }
   } catch (e) { }
 
-  // Show loading state
   injectProfileLoadingState(username);
+  scannedProfileUsernames.add(username);
 
-  // Fetch repos
   const repos = await fetchUserRepos(username);
   if (repos.length === 0) {
     removeProfileLoadingState();
+    injectProfileEmptyState(username, 0);
     return;
   }
 
-  // Get cached results
   const { techs: cachedTechs, cachedCount } = aggregateFromCache(repos);
 
-  // Show cached results immediately if we have any
   if (cachedTechs.length > 0) {
     removeProfileLoadingState();
     injectProfileSidebar(cachedTechs, cachedCount, username, true);
   }
 
-  // Select repos to scan: top 5 starred + 5 most recently pushed (deduped)
   const uncached = getUncachedRepos(repos);
-
-  // Sort by stars (descending)
   const byStars = [...uncached].sort((a, b) => b.stargazers_count - a.stargazers_count);
   const topStarred = byStars.slice(0, 5);
-
-  // Sort by recent push (descending)
   const byRecent = [...uncached].sort((a, b) =>
     new Date(b.pushed_at).getTime() - new Date(a.pushed_at).getTime()
   );
   const topRecent = byRecent.slice(0, 5);
 
-  // Merge and dedupe
   const toScanSet = new Set<string>();
   const toScan: RepoInfo[] = [];
   [...topStarred, ...topRecent].forEach(repo => {
@@ -1150,28 +1187,23 @@ async function scanAndDisplayProfile(username: string) {
       techs.forEach(t => newTechs.add(t));
       scannedCount++;
 
-      // Update UI progressively
       removeProfileLoadingState();
       injectProfileSidebar(Array.from(newTechs), scannedCount, username, uncached.length > toScan.length);
 
-      // Rate limit protection
       await new Promise(r => setTimeout(r, 300));
     }
 
-    // Cache aggregated profile result
     localStorage.setItem(profileCacheKey, JSON.stringify({
       techs: Array.from(newTechs),
       timestamp: Date.now(),
       repoCount: scannedCount
     }));
 
-    // If still no techs after scanning, show empty state
     if (newTechs.size === 0) {
       injectProfileEmptyState(username, scannedCount);
     }
   } else if (cachedTechs.length === 0) {
     removeProfileLoadingState();
-    // Show empty state if we had repos but found nothing cached
     if (repos.length > 0) {
       injectProfileEmptyState(username, 0);
     }
@@ -1181,7 +1213,7 @@ async function scanAndDisplayProfile(username: string) {
 function injectProfileLoadingState(username: string) {
   if (document.getElementById(PROFILE_SIDEBAR_ID)) return;
 
-  const sidebar = document.querySelector('.Layout-sidebar');
+  const sidebar = getProfileSidebar();
   if (!sidebar) return;
 
   const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark' ||
@@ -1198,9 +1230,6 @@ function injectProfileLoadingState(username: string) {
   const heading = document.createElement('h2');
   heading.className = 'h4 mb-2';
   heading.textContent = 'Tech Stack';
-  heading.style.display = 'flex';
-  heading.style.alignItems = 'center';
-  heading.style.gap = '8px';
 
   const loadingText = document.createElement('div');
   loadingText.textContent = `Scanning ${username}'s repositories...`;
@@ -1211,12 +1240,12 @@ function injectProfileLoadingState(username: string) {
   container.appendChild(heading);
   container.appendChild(loadingText);
 
-  // Insert after vcard or at sidebar start
-  const vcard = sidebar.querySelector('.vcard-details, .js-profile-editable-area');
-  if (vcard && vcard.parentElement) {
-    vcard.parentElement.insertBefore(container, vcard.nextSibling);
+  // Insert AFTER the h-card to prevent profile picture from jumping up
+  const hCard = sidebar.querySelector('.h-card');
+  if (hCard) {
+    hCard.insertAdjacentElement('afterend', container);
   } else {
-    sidebar.insertBefore(container, sidebar.firstChild);
+    sidebar.appendChild(container);
   }
 }
 
@@ -1228,7 +1257,7 @@ function removeProfileLoadingState() {
 function injectProfileEmptyState(username: string, repoCount: number) {
   removeProfileLoadingState();
 
-  const sidebar = document.querySelector('.Layout-sidebar');
+  const sidebar = getProfileSidebar();
   if (!sidebar) return;
 
   const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark' ||
@@ -1245,9 +1274,6 @@ function injectProfileEmptyState(username: string, repoCount: number) {
   const heading = document.createElement('h2');
   heading.className = 'h4 mb-2';
   heading.textContent = 'Tech Stack';
-  heading.style.display = 'flex';
-  heading.style.alignItems = 'center';
-  heading.style.gap = '8px';
 
   const emptyText = document.createElement('div');
   emptyText.textContent = 'No technologies detected';
@@ -1265,32 +1291,23 @@ function injectProfileEmptyState(username: string, repoCount: number) {
   container.appendChild(emptyText);
   container.appendChild(subtitle);
 
-  const vcard = sidebar.querySelector('.vcard-details, .js-profile-editable-area');
-  if (vcard && vcard.parentElement) {
-    vcard.parentElement.insertBefore(container, vcard.nextSibling);
+  // Insert AFTER the h-card to prevent profile picture from jumping up
+  const hCard = sidebar.querySelector('.h-card');
+  if (hCard) {
+    hCard.insertAdjacentElement('afterend', container);
   } else {
-    sidebar.insertBefore(container, sidebar.firstChild);
+    sidebar.appendChild(container);
   }
 }
 
 function injectProfileSidebar(techNames: string[], repoCount: number, username: string, hasMore: boolean) {
   removeProfileLoadingState();
 
-  const sidebar = document.querySelector('.Layout-sidebar');
+  const sidebar = getProfileSidebar();
   if (!sidebar) return;
 
   const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark' ||
     (document.documentElement.getAttribute('data-color-mode') === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-  // Group by category
-  const grouped = new Map<string, string[]>();
-  techNames.forEach(name => {
-    const category = getTechCategory(name);
-    if (!grouped.has(category)) grouped.set(category, []);
-    grouped.get(category)!.push(name);
-  });
-
-  const sortedCategories = CATEGORY_ORDER.filter(cat => grouped.has(cat));
 
   const container = document.createElement('div');
   container.id = PROFILE_SIDEBAR_ID;
@@ -1300,7 +1317,6 @@ function injectProfileSidebar(techNames: string[], repoCount: number, username: 
   container.style.border = `1px solid ${isDark ? '#30363d' : '#d0d7de'}`;
   container.style.backgroundColor = isDark ? '#0d1117' : '#ffffff';
 
-  // Header
   const heading = document.createElement('h2');
   heading.className = 'h4 mb-2';
   heading.textContent = 'Tech Stack';
@@ -1326,22 +1342,19 @@ function injectProfileSidebar(techNames: string[], repoCount: number, username: 
   container.appendChild(heading);
   container.appendChild(subtitle);
 
-  // Tech items (simplified view - top techs only)
   const allItems = document.createElement('div');
   allItems.style.display = 'flex';
   allItems.style.flexWrap = 'wrap';
   allItems.style.gap = '6px';
 
-  // Show top 20 techs max initially
   const topTechs = techNames.slice(0, 20);
   topTechs.forEach(name => {
-    const item = createSidebarItem(name, isDark);
+    const item = createProfileSidebarItem(name, isDark);
     allItems.appendChild(item);
   });
 
   container.appendChild(allItems);
 
-  // Show more button if needed
   if (techNames.length > 20) {
     const showMoreBtn = document.createElement('button');
     showMoreBtn.textContent = `Show all ${techNames.length} technologies`;
@@ -1358,7 +1371,7 @@ function injectProfileSidebar(techNames: string[], repoCount: number, username: 
     showMoreBtn.onclick = () => {
       allItems.innerHTML = '';
       techNames.forEach(name => {
-        allItems.appendChild(createSidebarItem(name, isDark));
+        allItems.appendChild(createProfileSidebarItem(name, isDark));
       });
       showMoreBtn.remove();
     };
@@ -1366,7 +1379,6 @@ function injectProfileSidebar(techNames: string[], repoCount: number, username: 
     container.appendChild(showMoreBtn);
   }
 
-  // Scan more button if there are uncached repos
   if (hasMore) {
     const scanMoreBtn = document.createElement('button');
     scanMoreBtn.textContent = 'Scan more repositories';
@@ -1387,7 +1399,7 @@ function injectProfileSidebar(techNames: string[], repoCount: number, username: 
 
       const repos = await fetchUserRepos(username);
       const uncached = getUncachedRepos(repos);
-      const toScan = uncached.slice(0, 10); // Scan 10 more
+      const toScan = uncached.slice(0, 10);
 
       const currentTechs = new Set(techNames);
       for (const repo of toScan) {
@@ -1396,45 +1408,94 @@ function injectProfileSidebar(techNames: string[], repoCount: number, username: 
         await new Promise(r => setTimeout(r, 300));
       }
 
-      // Refresh UI
       injectProfileSidebar(Array.from(currentTechs), repoCount + toScan.length, username, uncached.length > toScan.length);
     };
 
     container.appendChild(scanMoreBtn);
   }
 
-  // Insert into sidebar
-  const vcard = sidebar.querySelector('.vcard-details, .js-profile-editable-area');
-  if (vcard && vcard.parentElement) {
-    vcard.parentElement.insertBefore(container, vcard.nextSibling);
+  // Insert AFTER the h-card to prevent profile picture from jumping up
+  const hCard = sidebar.querySelector('.h-card');
+  if (hCard) {
+    hCard.insertAdjacentElement('afterend', container);
   } else {
-    sidebar.insertBefore(container, sidebar.firstChild);
+    sidebar.appendChild(container);
   }
 }
 
-// Initialize profile scanning
+function createProfileSidebarItem(text: string, isDark: boolean) {
+  const span = document.createElement('span');
+
+  span.style.padding = '4px 10px';
+  span.style.display = 'inline-flex';
+  span.style.alignItems = 'center';
+  span.style.gap = '6px';
+  span.style.borderRadius = '100px';
+  span.style.fontSize = '12px';
+  span.style.fontWeight = '500';
+  span.style.cursor = 'default';
+  span.style.transition = 'all 0.2s ease';
+  span.style.border = '1px solid transparent';
+
+  const icon = document.createElement('img');
+  icon.style.width = '14px';
+  icon.style.height = '14px';
+  icon.style.objectFit = 'contain';
+  icon.style.display = 'none';
+
+  const label = document.createElement('span');
+  label.textContent = text;
+
+  span.appendChild(icon);
+  span.appendChild(label);
+
+  if (isDark) {
+    span.style.backgroundColor = 'rgba(110, 118, 129, 0.1)';
+    span.style.color = '#c9d1d9';
+    span.style.border = '1px solid rgba(110, 118, 129, 0.4)';
+  } else {
+    span.style.backgroundColor = '#f6f8fa';
+    span.style.color = '#24292f';
+    span.style.border = '1px solid #d0d7de';
+  }
+
+  fetchLogo(text, isDark).then(url => {
+    if (url) {
+      icon.src = url;
+      icon.style.display = 'block';
+    }
+  });
+
+  return span;
+}
+
 function initProfileScanner() {
   const username = getProfileUsername();
-  if (username) {
+  if (username && !scannedProfileUsernames.has(username)) {
     console.log('[GitStack] Detected profile page for:', username);
     setTimeout(() => scanAndDisplayProfile(username), 500);
   }
 }
 
-// Start profile feature (called from content script main)
 function startProfileFeature() {
-  // Add profile scanner observer
+  let lastProfilePath = window.location.pathname;
+
   const profileObserver = new MutationObserver(() => {
-    if (isProfilePage() && !document.getElementById(PROFILE_SIDEBAR_ID)) {
-      const username = getProfileUsername();
-      if (username) {
-        setTimeout(() => scanAndDisplayProfile(username), 500);
+    const currentPath = window.location.pathname;
+
+    if (currentPath !== lastProfilePath) {
+      lastProfilePath = currentPath;
+
+      if (isProfilePageCheck()) {
+        const username = getProfileUsername();
+        if (username && !scannedProfileUsernames.has(username)) {
+          setTimeout(() => scanAndDisplayProfile(username), 500);
+        }
       }
     }
   });
 
   profileObserver.observe(document.body, { childList: true, subtree: true });
 
-  // Initial check
   setTimeout(initProfileScanner, 1000);
 }
