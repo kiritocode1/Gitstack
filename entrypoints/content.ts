@@ -454,7 +454,7 @@ function getTechCategory(name: string): string {
   if (['pnpm', 'npm', 'Yarn', 'Bun', 'Deno'].includes(name)) return 'Package Manager';
 
   // Languages
-  const languages = ['TypeScript', 'JavaScript', 'Python', 'Rust', 'Go', 'Java', 'Kotlin', 'Swift', 'Dart', 'C', 'C++', 'C#', 'PHP', 'Ruby', 'Elixir', 'Scala', 'Haskell', 'Lua', 'Zig', 'Solidity', 'Mojo', 'Julia'];
+  const languages = ['TypeScript', 'JavaScript', 'Python', 'Rust', 'Go', 'Java', 'Kotlin', 'Swift', 'Dart', 'C', 'C++', 'C#', 'PHP', 'Ruby', 'Elixir', 'Scala', 'Haskell', 'Lua', 'Zig', 'Solidity', 'Mojo', 'Julia', 'HTML', 'Shell', 'PowerShell', 'Perl', 'YAML', 'JSON', 'TOML', 'XML'];
   if (languages.includes(name)) return 'Language';
 
   // Frameworks
@@ -462,7 +462,7 @@ function getTechCategory(name: string): string {
   if (frameworks.includes(name)) return 'Framework';
 
   // Styling & UI
-  const styling = ['Tailwind CSS v4', 'Tailwind CSS v3', 'shadcn/ui', 'daisyUI', 'Radix UI', 'Mantine', 'Panda CSS', 'UnoCSS', 'Bootstrap', 'Chakra UI', 'Material UI', 'Headless UI', 'Ant Design', 'HeroUI (NextUI)', 'Ark UI', 'Magic UI', 'Flowbite'];
+  const styling = ['Tailwind CSS v4', 'Tailwind CSS v3', 'shadcn/ui', 'daisyUI', 'Radix UI', 'Mantine', 'Panda CSS', 'UnoCSS', 'Bootstrap', 'Chakra UI', 'Material UI', 'Headless UI', 'Ant Design', 'HeroUI (NextUI)', 'Ark UI', 'Magic UI', 'Flowbite', 'CSS', 'SCSS', 'SASS', 'Less', 'Stylus'];
   if (styling.includes(name)) return 'Styling & UI';
 
   // Database & ORM
@@ -474,7 +474,7 @@ function getTechCategory(name: string): string {
   if (testing.includes(name)) return 'Testing';
 
   // Build Tools
-  const buildTools = ['Vite', 'Webpack', 'Rollup', 'Parcel', 'Esbuild', 'Babel', 'Turbopack', 'Rspack', 'Rsbuild', 'Swc', 'Biome', 'ESLint', 'Prettier', 'Turborepo', 'Nx', 'Changesets', 'Lerna', 'Rush', 'tsx', 'ts-node', 'tsup', 'tstyche', 'Madge', 'jscodeshift', 'Oxc', 'Rolldown', 'Lightning CSS'];
+  const buildTools = ['Vite', 'Webpack', 'Rollup', 'Parcel', 'Esbuild', 'Babel', 'Turbopack', 'Rspack', 'Rsbuild', 'Swc', 'Biome', 'ESLint', 'Prettier', 'Turborepo', 'Nx', 'Changesets', 'Lerna', 'Rush', 'tsx', 'ts-node', 'tsup', 'tstyche', 'Madge', 'jscodeshift', 'Oxc', 'Rolldown', 'Lightning CSS', 'Husky', 'lint-staged', 'commitlint', 'Semantic Release', 'Lefthook', 'Pre-commit'];
   if (buildTools.includes(name)) return 'Build Tools';
 
   // State Management
@@ -485,12 +485,12 @@ function getTechCategory(name: string): string {
   const auth = ['NextAuth.js / Auth.js', 'Lucia Auth', 'Clerk', 'Kinde', 'Auth0', 'Better Auth', 'Passport'];
   if (auth.includes(name)) return 'Authentication';
 
-  // AI & ML
-  const aiml = ['OpenAI', 'Anthropic', 'LangChain', 'LlamaIndex', 'PyTorch', 'TensorFlow', 'Hugging Face', 'Mistral AI', 'Ollama', 'Groq', 'Cohere', 'DeepSeek', 'Replicate', 'Stability AI', 'Pinecone', 'ONNX', 'JAX', 'Keras', 'Scikit-learn'];
+  // AI & ML (including AI-assisted dev tools)
+  const aiml = ['OpenAI', 'Anthropic', 'LangChain', 'LlamaIndex', 'PyTorch', 'TensorFlow', 'Hugging Face', 'Mistral AI', 'Ollama', 'Groq', 'Cohere', 'DeepSeek', 'Replicate', 'Stability AI', 'Pinecone', 'ONNX', 'JAX', 'Keras', 'Scikit-learn', 'Cursor', 'CodeRabbit', 'GitHub Copilot', 'Codeium', 'Windsurf', 'Aider'];
   if (aiml.includes(name)) return 'AI & ML';
 
   // DevOps & Infrastructure
-  const devops = ['Docker', 'Terraform', 'Pulumi', 'GitHub Actions', 'Vercel', 'Netlify', 'Cloudflare', 'AWS', 'Google Cloud', 'Azure', 'Heroku', 'Fly.io', 'Railway', 'Nginx', 'Zeabur', 'Coolify', 'Nix', 'OpenTofu', 'Sentry', 'Datadog', 'PostHog'];
+  const devops = ['Docker', 'Terraform', 'Pulumi', 'GitHub Actions', 'Vercel', 'Netlify', 'Cloudflare', 'AWS', 'Google Cloud', 'Azure', 'Heroku', 'Fly.io', 'Railway', 'Nginx', 'Zeabur', 'Coolify', 'Nix', 'OpenTofu', 'Sentry', 'Datadog', 'PostHog', 'Ansible', 'Kubernetes', 'Helm', 'Jenkins', 'CircleCI', 'Travis CI', 'GitLab CI', 'Blacksmith', 'Vagrant', 'Packer', 'Renovate', 'Dependabot'];
   if (devops.includes(name)) return 'DevOps & Infra';
 
   // Animation & 3D
@@ -504,6 +504,10 @@ function getTechCategory(name: string): string {
   // API & Backend
   const api = ['GraphQL', 'Apollo', 'tRPC', 'Socket.IO', 'UploadThing', 'Resend'];
   if (api.includes(name)) return 'API & Backend';
+
+  // Documentation
+  const docs = ['VitePress', 'Docusaurus', 'Nextra', 'GitBook', 'MkDocs', 'Sphinx', 'Markdown'];
+  if (docs.includes(name)) return 'Documentation';
 
   // Default to Other
   return 'Other';
@@ -525,6 +529,7 @@ const CATEGORY_ORDER = [
   'Animation & 3D',
   'DevOps & Infra',
   'CMS',
+  'Documentation',
   'Package Manager',
   'Other'
 ];

@@ -419,4 +419,70 @@ export const signatures: TechSignature[] = [
     { name: 'DeepSeek', type: 'tool', packageJSONDependencies: ['deepseek'], logo: "https://svgl.app/library/deepseek.svg" },
     { name: 'Replicate', type: 'tool', packageJSONDependencies: ['replicate'], logo: { light: "https://svgl.app/library/replicate_light.svg", dark: "https://svgl.app/library/replicate_dark.svg" } },
     { name: 'Stability AI', type: 'tool', packageJSONDependencies: ['stability-client'], logo: "https://svgl.app/library/stability-ai.svg" },
+
+    // --- CORE WEB LANGUAGES ---
+    { name: 'JavaScript', type: 'language', extensions: ['.js', '.mjs', '.cjs', '.jsx'], logo: "https://svgl.app/library/javascript.svg" },
+    { name: 'HTML', type: 'language', extensions: ['.html', '.htm'], logo: "https://svgl.app/library/html5.svg" },
+    { name: 'CSS', type: 'language', extensions: ['.css'], logo: "https://svgl.app/library/css.svg" },
+    { name: 'SCSS', type: 'language', extensions: ['.scss'], logo: "https://svgl.app/library/sass.svg" },
+    { name: 'SASS', type: 'language', extensions: ['.sass'], logo: "https://svgl.app/library/sass.svg" },
+    { name: 'Less', type: 'language', extensions: ['.less'] },
+    { name: 'Stylus', type: 'language', extensions: ['.styl'] },
+
+    // --- MARKUP & DATA FORMATS ---
+    { name: 'Markdown', type: 'language', extensions: ['.md', '.mdx'] },
+    { name: 'YAML', type: 'language', extensions: ['.yml', '.yaml'] },
+    { name: 'JSON', type: 'language', extensions: ['.json', '.jsonc'] },
+    { name: 'TOML', type: 'language', extensions: ['.toml'] },
+    { name: 'XML', type: 'language', extensions: ['.xml'] },
+
+    // --- SHELL & SCRIPTING ---
+    { name: 'Shell', type: 'language', extensions: ['.sh', '.bash', '.zsh'], files: ['.bashrc', '.zshrc'] },
+    { name: 'PowerShell', type: 'language', extensions: ['.ps1', '.psm1'] },
+    { name: 'Ruby', type: 'language', extensions: ['.rb'], files: ['Gemfile', 'Rakefile'], logo: "https://svgl.app/library/ruby.svg" },
+    { name: 'Perl', type: 'language', extensions: ['.pl', '.pm'] },
+
+    // --- DEVOPS & INFRASTRUCTURE (Expanded) ---
+    { name: 'Ansible', type: 'infrastructure', files: ['ansible.cfg', 'playbook.yml', 'site.yml'], extensions: ['.ansible.yml'] },
+    { name: 'Kubernetes', type: 'infrastructure', files: ['kubernetes.yml', 'k8s.yml', 'deployment.yaml', 'service.yaml'], logo: "https://svgl.app/library/kubernetes.svg" },
+    { name: 'Helm', type: 'infrastructure', files: ['Chart.yaml', 'values.yaml'], logo: "https://svgl.app/library/helm.svg" },
+    { name: 'Jenkins', type: 'infrastructure', files: ['Jenkinsfile'] },
+    { name: 'CircleCI', type: 'infrastructure', files: ['.circleci/config.yml'] },
+    { name: 'Travis CI', type: 'infrastructure', files: ['.travis.yml'] },
+    { name: 'GitLab CI', type: 'infrastructure', files: ['.gitlab-ci.yml'] },
+    { name: 'Blacksmith', type: 'infrastructure', files: ['.blacksmith.yml', 'blacksmith.json'] },
+    { name: 'Vagrant', type: 'infrastructure', files: ['Vagrantfile'] },
+    { name: 'Packer', type: 'infrastructure', files: ['packer.json', 'packer.pkr.hcl'] },
+
+    // --- AI-ASSISTED DEVELOPMENT TOOLS ---
+    { name: 'Cursor', type: 'tool', files: ['.cursor', '.cursorrules', '.cursorignore'] },
+    { name: 'CodeRabbit', type: 'tool', files: ['.coderabbit.yaml', 'coderabbit.yaml'] },
+    { name: 'GitHub Copilot', type: 'tool', files: ['.github/copilot'] },
+    { name: 'Codeium', type: 'tool', files: ['.codeium'] },
+    { name: 'Windsurf', type: 'tool', files: ['.windsurfrules'] },
+    { name: 'Aider', type: 'tool', files: ['.aider.conf.yml', '.aider'] },
+
+    // --- EDITOR & IDE CONFIGS ---
+    { name: 'VS Code', type: 'tool', files: ['.vscode', '.vscode/settings.json', '.vscode/extensions.json'] },
+    { name: 'EditorConfig', type: 'tool', files: ['.editorconfig'] },
+    { name: 'IntelliJ', type: 'tool', files: ['.idea'] },
+
+    // --- DOCUMENTATION ---
+    { name: 'VitePress', type: 'tool', files: ['.vitepress'], packageJSONDependencies: ['vitepress'], logo: "https://svgl.app/library/vitepress.svg" },
+    { name: 'Docusaurus', type: 'tool', files: ['docusaurus.config.js', 'docusaurus.config.ts'], packageJSONDependencies: ['@docusaurus/core'], logo: "https://svgl.app/library/docusaurus.svg" },
+    { name: 'Nextra', type: 'tool', packageJSONDependencies: ['nextra'] },
+    { name: 'GitBook', type: 'tool', files: ['.gitbook.yaml'] },
+    { name: 'MkDocs', type: 'tool', files: ['mkdocs.yml'] },
+    { name: 'Sphinx', type: 'tool', files: ['conf.py', 'docs/conf.py'] },
+
+    // --- MISC TOOLS ---
+    { name: 'Husky', type: 'tool', files: ['.husky'], packageJSONDependencies: ['husky'] },
+    { name: 'lint-staged', type: 'tool', packageJSONDependencies: ['lint-staged'] },
+    { name: 'commitlint', type: 'tool', files: ['commitlint.config.js', '.commitlintrc'], packageJSONDependencies: ['@commitlint/cli'] },
+    { name: 'Semantic Release', type: 'tool', files: ['.releaserc', 'release.config.js'], packageJSONDependencies: ['semantic-release'] },
+    { name: 'Lefthook', type: 'tool', files: ['lefthook.yml', '.lefthook.yml'] },
+    { name: 'Pre-commit', type: 'tool', files: ['.pre-commit-config.yaml'] },
+    { name: 'Renovate', type: 'tool', files: ['renovate.json', 'renovate.json5', '.renovaterc'] },
+    { name: 'Dependabot', type: 'tool', files: ['.github/dependabot.yml'] },
+    { name: 'WXT', type: 'tool', files: ['wxt.config.ts', 'wxt.config.js'], packageJSONDependencies: ['wxt'] },
 ];
