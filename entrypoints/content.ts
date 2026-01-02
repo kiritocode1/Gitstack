@@ -1159,8 +1159,17 @@ async function scanAndDisplayProfile(username: string) {
       timestamp: Date.now(),
       repoCount: scannedCount
     }));
+
+    // If still no techs after scanning, show empty state
+    if (newTechs.size === 0) {
+      injectProfileEmptyState(username, scannedCount);
+    }
   } else if (cachedTechs.length === 0) {
     removeProfileLoadingState();
+    // Show empty state if we had repos but found nothing cached
+    if (repos.length > 0) {
+      injectProfileEmptyState(username, 0);
+    }
   }
 }
 
@@ -1209,6 +1218,54 @@ function injectProfileLoadingState(username: string) {
 function removeProfileLoadingState() {
   const existing = document.getElementById(PROFILE_SIDEBAR_ID);
   if (existing) existing.remove();
+}
+
+function injectProfileEmptyState(username: string, repoCount: number) {
+  removeProfileLoadingState();
+
+  const sidebar = document.querySelector('.Layout-sidebar');
+  if (!sidebar) return;
+
+  const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark' ||
+    (document.documentElement.getAttribute('data-color-mode') === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  const container = document.createElement('div');
+  container.id = PROFILE_SIDEBAR_ID;
+  container.style.marginTop = '16px';
+  container.style.padding = '16px';
+  container.style.borderRadius = '6px';
+  container.style.border = `1px solid ${isDark ? '#30363d' : '#d0d7de'}`;
+  container.style.backgroundColor = isDark ? '#0d1117' : '#ffffff';
+
+  const heading = document.createElement('h2');
+  heading.className = 'h4 mb-2';
+  heading.textContent = 'Tech Stack';
+  heading.style.display = 'flex';
+  heading.style.alignItems = 'center';
+  heading.style.gap = '8px';
+
+  const emptyText = document.createElement('div');
+  emptyText.textContent = 'No technologies detected';
+  emptyText.style.fontSize = '13px';
+  emptyText.style.color = isDark ? '#8b949e' : '#586069';
+  emptyText.style.marginTop = '8px';
+
+  const subtitle = document.createElement('div');
+  subtitle.textContent = repoCount > 0 ? `Scanned ${repoCount} repositories` : 'No public repositories found';
+  subtitle.style.fontSize = '12px';
+  subtitle.style.color = isDark ? '#6e7681' : '#8b949e';
+  subtitle.style.marginTop = '4px';
+
+  container.appendChild(heading);
+  container.appendChild(emptyText);
+  container.appendChild(subtitle);
+
+  const vcard = sidebar.querySelector('.vcard-details, .js-profile-editable-area');
+  if (vcard && vcard.parentElement) {
+    vcard.parentElement.insertBefore(container, vcard.nextSibling);
+  } else {
+    sidebar.insertBefore(container, sidebar.firstChild);
+  }
 }
 
 function injectProfileSidebar(techNames: string[], repoCount: number, username: string, hasMore: boolean) {
