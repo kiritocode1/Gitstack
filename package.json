@@ -2,7 +2,7 @@
   "name": "github-stack-detector",
   "description": "Automatically detects and displays the technology stack of the current GitHub repository.",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Aryan Kathawale <kathawalearyan9@gmail.com>",
   "homepage": "https://aryank.space",
   "type": "module",

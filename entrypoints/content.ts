@@ -436,6 +436,9 @@ export default defineContentScript({
 
     // Initial scan
     setTimeout(scanAndDisplay, 1000);
+
+    // Start profile page feature
+    startProfileFeature();
   },
 });
 
@@ -916,4 +919,460 @@ async function fetchLogo(techName: string, isDark: boolean): Promise<string | nu
 
   logoCache.set(cacheKey, null); // Cache miss to prevent retry
   return null;
+}
+
+// ============================================================================
+// PROFILE PAGE FEATURE - Aggregate tech stack across user's repositories
+// ============================================================================
+
+const PROFILE_SIDEBAR_ID = 'github-ext-profile-stack';
+const PROFILE_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+const MAX_QUICK_SCAN_REPOS = 5;
+
+// Reserved GitHub paths that are NOT user profiles
+const RESERVED_PATHS = [
+  'explore', 'topics', 'trending', 'collections', 'events',
+  'sponsors', 'about', 'pricing', 'features', 'enterprise',
+  'team', 'security', 'customer-stories', 'readme', 'new',
+  'organizations', 'settings', 'notifications', 'pulls', 'issues',
+  'marketplace', 'apps', 'codespaces', 'discussions', 'orgs', 'users',
+  'search', 'login', 'signup', 'join', 'stars', 'watching', 'repositories'
+];
+
+function isProfilePage(): boolean {
+  const parts = location.pathname.split('/').filter(Boolean);
+  // Profile: exactly one segment, not a reserved path, not containing special chars
+  if (parts.length !== 1) return false;
+  const username = parts[0];
+  if (RESERVED_PATHS.includes(username.toLowerCase())) return false;
+  if (username.startsWith('.') || username.includes('?')) return false;
+  return true;
+}
+
+function getProfileUsername(): string | null {
+  if (!isProfilePage()) return null;
+  return location.pathname.split('/').filter(Boolean)[0];
+}
+
+interface RepoInfo {
+  name: string;
+  owner: { login: string };
+  full_name: string;
+  default_branch: string;
+  stargazers_count: number;
+  pushed_at: string;
+}
+
+async function fetchUserRepos(username: string): Promise<RepoInfo[]> {
+  const repos: RepoInfo[] = [];
+  let page = 1;
+  const maxPages = 3; // Limit to 300 repos max
+
+  try {
+    while (page <= maxPages) {
+      const res = await fetch(
+        `https://api.github.com/users/${username}/repos?per_page=100&page=${page}&sort=updated`
+      );
+      if (!res.ok) break;
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) break;
+      repos.push(...data);
+      if (data.length < 100) break; // Last page
+      page++;
+    }
+  } catch (e) {
+    console.warn('[GitStack] Failed to fetch repos for', username, e);
+  }
+
+  console.log(`[GitStack] Found ${repos.length} repos for ${username}`);
+  return repos;
+}
+
+function aggregateFromCache(repos: RepoInfo[]): { techs: string[], cachedCount: number } {
+  const allTechs = new Set<string>();
+  let cachedCount = 0;
+
+  for (const repo of repos) {
+    const cacheKey = `gitstack-cache-${repo.owner.login}-${repo.name}`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const { techs, timestamp } = JSON.parse(cached);
+        const age = Date.now() - timestamp;
+        // Use cache if less than 1 hour old
+        if (age < 60 * 60 * 1000 && Array.isArray(techs)) {
+          techs.forEach((t: string) => allTechs.add(t));
+          cachedCount++;
+        }
+      }
+    } catch (e) {
+      // Ignore cache read errors
+    }
+  }
+
+  return { techs: Array.from(allTechs), cachedCount };
+}
+
+function getUncachedRepos(repos: RepoInfo[]): RepoInfo[] {
+  return repos.filter(repo => {
+    const cacheKey = `gitstack-cache-${repo.owner.login}-${repo.name}`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const { timestamp } = JSON.parse(cached);
+        return Date.now() - timestamp > 60 * 60 * 1000; // Stale if > 1 hour
+      }
+    } catch (e) { }
+    return true; // Not cached
+  });
+}
+
+async function scanRepoQuick(repo: RepoInfo): Promise<string[]> {
+  const { owner, name } = repo;
+  const detectedSet = new Set<string>();
+
+  try {
+    // Fetch tree
+    const treePaths = await fetchRepoTree(owner.login, name);
+
+    if (treePaths.length > 0) {
+      signatures.forEach(sig => {
+        if (sig.files && sig.files.some(f => matchesFilePattern(treePaths, f))) {
+          detectedSet.add(sig.name);
+        }
+        if (sig.extensions && sig.extensions.some(ext => matchesExtension(treePaths, ext))) {
+          detectedSet.add(sig.name);
+        }
+      });
+
+      // Quick package.json check (root only for speed)
+      const packageJsonPaths = treePaths.filter(p => p === 'package.json' || p.endsWith('/package.json')).slice(0, 3);
+      for (const filePath of packageJsonPaths) {
+        try {
+          const res = await fetch(`https://raw.githubusercontent.com/${owner.login}/${name}/HEAD/${filePath}`);
+          if (res.ok) {
+            const text = await res.text();
+            const json = JSON.parse(text);
+            const deps = { ...json.dependencies, ...json.devDependencies };
+            signatures.forEach(sig => {
+              if (sig.packageJSONDependencies?.some(dep => deps[dep])) {
+                detectedSet.add(sig.name);
+              }
+            });
+          }
+        } catch (e) { }
+      }
+    }
+
+    // Cache result
+    const techsArray = Array.from(detectedSet);
+    const cacheKey = `gitstack-cache-${owner.login}-${name}`;
+    localStorage.setItem(cacheKey, JSON.stringify({ techs: techsArray, timestamp: Date.now() }));
+
+    return techsArray;
+  } catch (e) {
+    console.warn('[GitStack] Quick scan failed for', repo.full_name, e);
+    return [];
+  }
+}
+
+async function scanAndDisplayProfile(username: string) {
+  const profileCacheKey = `gitstack-profile-${username}`;
+
+  // Check profile-level cache
+  try {
+    const cached = localStorage.getItem(profileCacheKey);
+    if (cached) {
+      const { techs, timestamp, repoCount } = JSON.parse(cached);
+      if (Date.now() - timestamp < PROFILE_CACHE_TTL && techs.length > 0) {
+        console.log('[GitStack] Using cached profile data for', username);
+        injectProfileSidebar(techs, repoCount, username, false);
+        return;
+      }
+    }
+  } catch (e) { }
+
+  // Show loading state
+  injectProfileLoadingState(username);
+
+  // Fetch repos
+  const repos = await fetchUserRepos(username);
+  if (repos.length === 0) {
+    removeProfileLoadingState();
+    return;
+  }
+
+  // Get cached results
+  const { techs: cachedTechs, cachedCount } = aggregateFromCache(repos);
+
+  // Show cached results immediately if we have any
+  if (cachedTechs.length > 0) {
+    removeProfileLoadingState();
+    injectProfileSidebar(cachedTechs, cachedCount, username, true);
+  }
+
+  // Select repos to scan: top 5 starred + 5 most recently pushed (deduped)
+  const uncached = getUncachedRepos(repos);
+
+  // Sort by stars (descending)
+  const byStars = [...uncached].sort((a, b) => b.stargazers_count - a.stargazers_count);
+  const topStarred = byStars.slice(0, 5);
+
+  // Sort by recent push (descending)
+  const byRecent = [...uncached].sort((a, b) =>
+    new Date(b.pushed_at).getTime() - new Date(a.pushed_at).getTime()
+  );
+  const topRecent = byRecent.slice(0, 5);
+
+  // Merge and dedupe
+  const toScanSet = new Set<string>();
+  const toScan: RepoInfo[] = [];
+  [...topStarred, ...topRecent].forEach(repo => {
+    if (!toScanSet.has(repo.full_name)) {
+      toScanSet.add(repo.full_name);
+      toScan.push(repo);
+    }
+  });
+
+  if (toScan.length > 0) {
+    console.log(`[GitStack] Quick scanning ${toScan.length} uncached repos`);
+
+    const newTechs = new Set<string>(cachedTechs);
+    let scannedCount = cachedCount;
+
+    for (const repo of toScan) {
+      const techs = await scanRepoQuick(repo);
+      techs.forEach(t => newTechs.add(t));
+      scannedCount++;
+
+      // Update UI progressively
+      removeProfileLoadingState();
+      injectProfileSidebar(Array.from(newTechs), scannedCount, username, uncached.length > toScan.length);
+
+      // Rate limit protection
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    // Cache aggregated profile result
+    localStorage.setItem(profileCacheKey, JSON.stringify({
+      techs: Array.from(newTechs),
+      timestamp: Date.now(),
+      repoCount: scannedCount
+    }));
+  } else if (cachedTechs.length === 0) {
+    removeProfileLoadingState();
+  }
+}
+
+function injectProfileLoadingState(username: string) {
+  if (document.getElementById(PROFILE_SIDEBAR_ID)) return;
+
+  const sidebar = document.querySelector('.Layout-sidebar');
+  if (!sidebar) return;
+
+  const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark' ||
+    (document.documentElement.getAttribute('data-color-mode') === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  const container = document.createElement('div');
+  container.id = PROFILE_SIDEBAR_ID;
+  container.style.marginTop = '16px';
+  container.style.padding = '16px';
+  container.style.borderRadius = '6px';
+  container.style.border = `1px solid ${isDark ? '#30363d' : '#d0d7de'}`;
+  container.style.backgroundColor = isDark ? '#0d1117' : '#ffffff';
+
+  const heading = document.createElement('h2');
+  heading.className = 'h4 mb-2';
+  heading.textContent = 'Tech Stack';
+  heading.style.display = 'flex';
+  heading.style.alignItems = 'center';
+  heading.style.gap = '8px';
+
+  const loadingText = document.createElement('div');
+  loadingText.textContent = `Scanning ${username}'s repositories...`;
+  loadingText.style.fontSize = '12px';
+  loadingText.style.color = isDark ? '#8b949e' : '#586069';
+  loadingText.style.marginTop = '8px';
+
+  container.appendChild(heading);
+  container.appendChild(loadingText);
+
+  // Insert after vcard or at sidebar start
+  const vcard = sidebar.querySelector('.vcard-details, .js-profile-editable-area');
+  if (vcard && vcard.parentElement) {
+    vcard.parentElement.insertBefore(container, vcard.nextSibling);
+  } else {
+    sidebar.insertBefore(container, sidebar.firstChild);
+  }
+}
+
+function removeProfileLoadingState() {
+  const existing = document.getElementById(PROFILE_SIDEBAR_ID);
+  if (existing) existing.remove();
+}
+
+function injectProfileSidebar(techNames: string[], repoCount: number, username: string, hasMore: boolean) {
+  removeProfileLoadingState();
+
+  const sidebar = document.querySelector('.Layout-sidebar');
+  if (!sidebar) return;
+
+  const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark' ||
+    (document.documentElement.getAttribute('data-color-mode') === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  // Group by category
+  const grouped = new Map<string, string[]>();
+  techNames.forEach(name => {
+    const category = getTechCategory(name);
+    if (!grouped.has(category)) grouped.set(category, []);
+    grouped.get(category)!.push(name);
+  });
+
+  const sortedCategories = CATEGORY_ORDER.filter(cat => grouped.has(cat));
+
+  const container = document.createElement('div');
+  container.id = PROFILE_SIDEBAR_ID;
+  container.style.marginTop = '16px';
+  container.style.padding = '16px';
+  container.style.borderRadius = '6px';
+  container.style.border = `1px solid ${isDark ? '#30363d' : '#d0d7de'}`;
+  container.style.backgroundColor = isDark ? '#0d1117' : '#ffffff';
+
+  // Header
+  const heading = document.createElement('h2');
+  heading.className = 'h4 mb-2';
+  heading.textContent = 'Tech Stack';
+  heading.style.display = 'flex';
+  heading.style.alignItems = 'center';
+  heading.style.gap = '8px';
+
+  const countBadge = document.createElement('span');
+  countBadge.textContent = `${techNames.length}`;
+  countBadge.style.fontSize = '12px';
+  countBadge.style.padding = '2px 8px';
+  countBadge.style.borderRadius = '10px';
+  countBadge.style.backgroundColor = isDark ? 'rgba(110, 118, 129, 0.4)' : '#e1e4e8';
+  countBadge.style.color = isDark ? '#8b949e' : '#586069';
+  heading.appendChild(countBadge);
+
+  const subtitle = document.createElement('div');
+  subtitle.textContent = `Based on ${repoCount} repositories`;
+  subtitle.style.fontSize = '12px';
+  subtitle.style.color = isDark ? '#8b949e' : '#586069';
+  subtitle.style.marginBottom = '12px';
+
+  container.appendChild(heading);
+  container.appendChild(subtitle);
+
+  // Tech items (simplified view - top techs only)
+  const allItems = document.createElement('div');
+  allItems.style.display = 'flex';
+  allItems.style.flexWrap = 'wrap';
+  allItems.style.gap = '6px';
+
+  // Show top 20 techs max initially
+  const topTechs = techNames.slice(0, 20);
+  topTechs.forEach(name => {
+    const item = createSidebarItem(name, isDark);
+    allItems.appendChild(item);
+  });
+
+  container.appendChild(allItems);
+
+  // Show more button if needed
+  if (techNames.length > 20) {
+    const showMoreBtn = document.createElement('button');
+    showMoreBtn.textContent = `Show all ${techNames.length} technologies`;
+    showMoreBtn.style.marginTop = '12px';
+    showMoreBtn.style.padding = '6px 12px';
+    showMoreBtn.style.fontSize = '12px';
+    showMoreBtn.style.border = `1px solid ${isDark ? '#30363d' : '#d0d7de'}`;
+    showMoreBtn.style.borderRadius = '6px';
+    showMoreBtn.style.backgroundColor = 'transparent';
+    showMoreBtn.style.color = isDark ? '#58a6ff' : '#0969da';
+    showMoreBtn.style.cursor = 'pointer';
+    showMoreBtn.style.width = '100%';
+
+    showMoreBtn.onclick = () => {
+      allItems.innerHTML = '';
+      techNames.forEach(name => {
+        allItems.appendChild(createSidebarItem(name, isDark));
+      });
+      showMoreBtn.remove();
+    };
+
+    container.appendChild(showMoreBtn);
+  }
+
+  // Scan more button if there are uncached repos
+  if (hasMore) {
+    const scanMoreBtn = document.createElement('button');
+    scanMoreBtn.textContent = '🔍 Scan more repositories';
+    scanMoreBtn.style.marginTop = '8px';
+    scanMoreBtn.style.padding = '6px 12px';
+    scanMoreBtn.style.fontSize = '12px';
+    scanMoreBtn.style.border = 'none';
+    scanMoreBtn.style.borderRadius = '6px';
+    scanMoreBtn.style.backgroundColor = isDark ? '#238636' : '#1f883d';
+    scanMoreBtn.style.color = '#ffffff';
+    scanMoreBtn.style.cursor = 'pointer';
+    scanMoreBtn.style.width = '100%';
+    scanMoreBtn.style.fontWeight = '500';
+
+    scanMoreBtn.onclick = async () => {
+      scanMoreBtn.disabled = true;
+      scanMoreBtn.textContent = 'Scanning...';
+
+      const repos = await fetchUserRepos(username);
+      const uncached = getUncachedRepos(repos);
+      const toScan = uncached.slice(0, 10); // Scan 10 more
+
+      const currentTechs = new Set(techNames);
+      for (const repo of toScan) {
+        const techs = await scanRepoQuick(repo);
+        techs.forEach(t => currentTechs.add(t));
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      // Refresh UI
+      injectProfileSidebar(Array.from(currentTechs), repoCount + toScan.length, username, uncached.length > toScan.length);
+    };
+
+    container.appendChild(scanMoreBtn);
+  }
+
+  // Insert into sidebar
+  const vcard = sidebar.querySelector('.vcard-details, .js-profile-editable-area');
+  if (vcard && vcard.parentElement) {
+    vcard.parentElement.insertBefore(container, vcard.nextSibling);
+  } else {
+    sidebar.insertBefore(container, sidebar.firstChild);
+  }
+}
+
+// Initialize profile scanning
+function initProfileScanner() {
+  const username = getProfileUsername();
+  if (username) {
+    console.log('[GitStack] Detected profile page for:', username);
+    setTimeout(() => scanAndDisplayProfile(username), 500);
+  }
+}
+
+// Start profile feature (called from content script main)
+function startProfileFeature() {
+  // Add profile scanner observer
+  const profileObserver = new MutationObserver(() => {
+    if (isProfilePage() && !document.getElementById(PROFILE_SIDEBAR_ID)) {
+      const username = getProfileUsername();
+      if (username) {
+        setTimeout(() => scanAndDisplayProfile(username), 500);
+      }
+    }
+  });
+
+  profileObserver.observe(document.body, { childList: true, subtree: true });
+
+  // Initial check
+  setTimeout(initProfileScanner, 1000);
 }

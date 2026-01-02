@@ -35,10 +35,17 @@ function App() {
             <a href="https://aryank.space" target="_blank" className="footer-link">
               aryank.space <span className="arrow">↗</span>
             </a>
+            <a href="https://x.com/blank_spacets" target="_blank" className="footer-link">
+              @blank_spacets <span className="arrow">↗</span>
+            </a>
           </div>
           <div className="footer-col align-right">
-            <div className="footer-label">[VERSION]</div>
-            <div className="footer-sub">v1.0.0</div>
+            <div className="footer-label">[HELP] ヘルプ</div>
+            <a href="https://x.com/blank_spacets" target="_blank" className="footer-link footer-link-muted">
+              DM for suggestions
+            </a>
+            <div className="footer-label" style={{ marginTop: '8px' }}>[VERSION]</div>
+            <div className="footer-sub">v1.0.1</div>
           </div>
         </div>
       </div>
