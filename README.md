@@ -1,14 +1,22 @@
-# gitstack
+<p align="center">
+  <img src="public/logo.svg" width="80">
+</p>
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/kiritocode1/gitstack)
+<h1 align="center">gitstack</h1>
 
-Detect technology stacks on GitHub repositories. Automatically.
+<p align="center">
+  <a href="https://github.com/kiritocode1/gitstack/releases">
+    <img src="https://img.shields.io/badge/version-1.0.1-blue.svg" alt="Version">
+  </a>
+</p>
+
+<p align="center">
+  Detect technology stacks on GitHub repositories. Automatically.
+</p>
 
 <br>
 
-<p align="center">
-<img src="public/logo.svg" width="100">
-</p>
+<!-- Add demo video/gif here once compressed -->
 
 <br>
 

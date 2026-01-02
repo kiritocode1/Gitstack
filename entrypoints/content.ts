@@ -1307,7 +1307,7 @@ function injectProfileSidebar(techNames: string[], repoCount: number, username: 
   // Scan more button if there are uncached repos
   if (hasMore) {
     const scanMoreBtn = document.createElement('button');
-    scanMoreBtn.textContent = '🔍 Scan more repositories';
+    scanMoreBtn.textContent = 'Scan more repositories';
     scanMoreBtn.style.marginTop = '8px';
     scanMoreBtn.style.padding = '6px 12px';
     scanMoreBtn.style.fontSize = '12px';
