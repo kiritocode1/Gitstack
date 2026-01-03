@@ -14,6 +14,19 @@ const treeCache = new Map<string, { paths: string[]; timestamp: number }>();
 let cachedToken: string | null = null;
 let tokenChecked = false;
 
+// Listen for storage changes (when popup saves/removes token)
+try {
+    browser.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'sync' && changes.githubToken) {
+            cachedToken = (changes.githubToken.newValue as string) ?? null;
+            tokenChecked = true;
+            console.log('[GitStack] Token updated from storage:', cachedToken ? 'set' : 'removed');
+        }
+    });
+} catch (e) {
+    // Storage listener not available (e.g., in non-extension context)
+}
+
 export interface RepoInfo {
     name: string;
     owner: { login: string };
