@@ -157,7 +157,7 @@ function App() {
               DM for suggestions
             </a>
             <div className="footer-label" style={{ marginTop: '8px' }}>[VERSION]</div>
-            <div className="footer-sub">v1.0.2</div>
+            <div className="footer-sub">v1.1.0</div>
           </div>
         </div>
       </div>
