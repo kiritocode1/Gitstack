@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/kiritocode1/gitstack/releases">
-    <img src="https://img.shields.io/badge/version-1.0.2-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-1.1.0-blue.svg" alt="Version">
   </a>
 </p>
 
@@ -36,6 +36,7 @@ This extension does that for you. Instantly.
 - 🎨 **Native UI** - Injects directly into GitHub's sidebar, respects dark/light mode
 - ⚡️ **Fast** - Results cached locally, instant on repeat visits
 - 🖼️ **Logos** - Fetches official logos via [SVGL](https://svgl.app)
+- 🔑 **GitHub Token Support** - Add your Personal Access Token to avoid rate limits
 
 ## Install
 

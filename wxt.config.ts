@@ -6,7 +6,7 @@ export default defineConfig({
   manifest: {
     name: 'GitHub Stack Detector',
     description: 'Automatically detects and displays the technology stack of the current GitHub repository.',
-    version: '1.0.2',
+    version: '1.1.0',
     icons: {
       16: '/icons/16.png',
       32: '/icons/32.png',
