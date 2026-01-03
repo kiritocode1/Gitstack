@@ -10,6 +10,7 @@ import {
     removeProfileLoadingState,
     injectProfileEmptyState,
     injectProfileSidebar,
+    injectProfileRateLimitError,
 } from './ui';
 
 // Track usernames we've already scanned to prevent infinite loops
@@ -76,22 +77,37 @@ function aggregateFromCache(repos: RepoInfo[]): { techs: string[]; cachedCount: 
     return { techs: Array.from(allTechs), cachedCount };
 }
 
+interface ScanResult {
+    techs: string[];
+    rateLimited: boolean;
+}
+
 /**
  * Quick scan a single repository
  */
-async function scanRepoQuick(repo: RepoInfo): Promise<string[]> {
+async function scanRepoQuick(repo: RepoInfo): Promise<ScanResult> {
     const cacheKey = `gitstack-cache-${repo.owner.login}-${repo.name}`;
 
     const cached = getCacheWithTimestamp<{ techs: string[] }>(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL.PROFILE) {
-        return cached.data.techs || [];
+        return { techs: cached.data.techs || [], rateLimited: false };
     }
 
     try {
         const treeRes = await fetch(
             `https://api.github.com/repos/${repo.full_name}/git/trees/${repo.default_branch}?recursive=1`
         );
-        if (!treeRes.ok) return [];
+
+        // Check for rate limit
+        if (treeRes.status === 403) {
+            const remaining = treeRes.headers.get('X-RateLimit-Remaining');
+            if (remaining === '0') {
+                console.warn('[GitStack] Rate limited during repo scan');
+                return { techs: [], rateLimited: true };
+            }
+        }
+
+        if (!treeRes.ok) return { techs: [], rateLimited: false };
 
         const treeData = await treeRes.json();
         const paths: string[] = treeData.tree?.map((item: any) => item.path) || [];
@@ -111,10 +127,10 @@ async function scanRepoQuick(repo: RepoInfo): Promise<string[]> {
 
         setCache(cacheKey, { techs: techsArray });
 
-        return techsArray;
+        return { techs: techsArray, rateLimited: false };
     } catch (e) {
         console.warn('[GitStack] Quick scan failed for', repo.full_name, e);
-        return [];
+        return { techs: [], rateLimited: false };
     }
 }
 
@@ -175,7 +191,14 @@ export async function scanAndDisplayProfile(username: string): Promise<void> {
         let scannedCount = cachedCount;
 
         for (const repo of toScan) {
-            const techs = await scanRepoQuick(repo);
+            const { techs, rateLimited } = await scanRepoQuick(repo);
+
+            // Show rate limit error if we hit the limit
+            if (rateLimited) {
+                injectProfileRateLimitError(username);
+                return;
+            }
+
             techs.forEach(t => newTechs.add(t));
             scannedCount++;
 
@@ -219,7 +242,13 @@ async function scanMoreRepos(
     let count = currentCount;
 
     for (const repo of toScan) {
-        const techs = await scanRepoQuick(repo);
+        const { techs, rateLimited } = await scanRepoQuick(repo);
+
+        if (rateLimited) {
+            injectProfileRateLimitError(username);
+            return;
+        }
+
         techs.forEach(t => techSet.add(t));
         count++;
         await new Promise(r => setTimeout(r, 300));

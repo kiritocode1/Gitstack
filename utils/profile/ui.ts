@@ -119,6 +119,100 @@ export function injectProfileEmptyState(username: string, repoCount: number): vo
 }
 
 /**
+ * Inject rate limit error state when GitHub API is exhausted
+ */
+export function injectProfileRateLimitError(username: string): void {
+    removeProfileLoadingState();
+
+    const sidebar = getProfileSidebar();
+    if (!sidebar) return;
+
+    const isDark = isDarkMode();
+
+    const container = document.createElement('div');
+    container.id = PROFILE_SIDEBAR_ID;
+    container.style.marginTop = '16px';
+    container.style.padding = '16px';
+    container.style.borderRadius = '6px';
+    container.style.border = `1px solid ${isDark ? '#f8514966' : '#cf222e33'}`;
+    container.style.backgroundColor = isDark ? '#0d1117' : '#ffffff';
+
+    const heading = document.createElement('h2');
+    heading.className = 'h4 mb-2';
+    heading.textContent = 'Tech Stack';
+    heading.style.display = 'flex';
+    heading.style.alignItems = 'center';
+    heading.style.gap = '8px';
+
+    // Warning icon
+    const warningIcon = document.createElement('span');
+    warningIcon.textContent = '⚠️';
+    warningIcon.style.fontSize = '14px';
+    heading.appendChild(warningIcon);
+
+    const errorTitle = document.createElement('div');
+    errorTitle.textContent = 'Rate Limit Exceeded';
+    errorTitle.style.fontSize = '13px';
+    errorTitle.style.fontWeight = '600';
+    errorTitle.style.color = isDark ? '#f85149' : '#cf222e';
+    errorTitle.style.marginTop = '8px';
+
+    const errorDesc = document.createElement('div');
+    errorDesc.textContent = 'GitHub API limit reached (60 requests/hour for unauthenticated users).';
+    errorDesc.style.fontSize = '12px';
+    errorDesc.style.color = isDark ? '#8b949e' : '#586069';
+    errorDesc.style.marginTop = '6px';
+    errorDesc.style.lineHeight = '1.4';
+
+    const suggestion = document.createElement('div');
+    suggestion.style.marginTop = '12px';
+    suggestion.style.padding = '10px';
+    suggestion.style.borderRadius = '6px';
+    suggestion.style.backgroundColor = isDark ? 'rgba(56, 139, 253, 0.1)' : '#ddf4ff';
+    suggestion.style.border = `1px solid ${isDark ? 'rgba(56, 139, 253, 0.4)' : '#54aeff66'}`;
+
+    const suggestionTitle = document.createElement('div');
+    suggestionTitle.textContent = '💡 Add a GitHub Token';
+    suggestionTitle.style.fontSize = '12px';
+    suggestionTitle.style.fontWeight = '600';
+    suggestionTitle.style.color = isDark ? '#58a6ff' : '#0969da';
+
+    const suggestionText = document.createElement('div');
+    suggestionText.textContent = 'Open extension popup → Settings → Add your Personal Access Token to get 5,000 requests/hour.';
+    suggestionText.style.fontSize = '11px';
+    suggestionText.style.color = isDark ? '#8b949e' : '#586069';
+    suggestionText.style.marginTop = '4px';
+    suggestionText.style.lineHeight = '1.4';
+
+    const tokenLink = document.createElement('a');
+    tokenLink.href = 'https://github.com/settings/tokens?type=beta';
+    tokenLink.target = '_blank';
+    tokenLink.textContent = 'Create a token on GitHub →';
+    tokenLink.style.display = 'inline-block';
+    tokenLink.style.marginTop = '8px';
+    tokenLink.style.fontSize = '11px';
+    tokenLink.style.color = isDark ? '#58a6ff' : '#0969da';
+    tokenLink.style.textDecoration = 'none';
+
+    suggestion.appendChild(suggestionTitle);
+    suggestion.appendChild(suggestionText);
+    suggestion.appendChild(tokenLink);
+
+    container.appendChild(heading);
+    container.appendChild(errorTitle);
+    container.appendChild(errorDesc);
+    container.appendChild(suggestion);
+
+    // Insert AFTER the h-card
+    const hCard = sidebar.querySelector('.h-card');
+    if (hCard) {
+        hCard.insertAdjacentElement('afterend', container);
+    } else {
+        sidebar.appendChild(container);
+    }
+}
+
+/**
  * Inject profile sidebar with tech stack
  */
 export function injectProfileSidebar(

@@ -185,3 +185,173 @@ body {
 .arrow {
   font-size: 10px;
 }
+
+.footer-link-muted {
+  color: var(--text-dim);
+}
+
+/* Settings Section */
+.settings-section {
+  margin-top: 20px;
+  border-top: 1px solid #1a1a1a;
+  padding-top: 16px;
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.settings-header:hover .settings-label {
+  color: var(--text-main);
+}
+
+.settings-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: color 0.2s;
+}
+
+.settings-chevron {
+  font-size: 8px;
+  color: var(--text-dim);
+  transition: transform 0.2s;
+}
+
+.settings-chevron.open {
+  transform: rotate(180deg);
+}
+
+.settings-content {
+  margin-top: 12px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.setting-item {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.setting-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setting-desc {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  margin-bottom: 10px;
+}
+
+.token-status {
+  font-size: 9px;
+  font-family: var(--font-mono);
+}
+
+.token-status.active {
+  color: #22c55e;
+}
+
+.token-status.inactive {
+  color: #666;
+}
+
+.token-input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.token-input {
+  flex: 1;
+  background: #000;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-main);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.token-input:focus {
+  border-color: #555;
+}
+
+.token-input::placeholder {
+  color: #444;
+}
+
+.token-btn {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.token-btn.save {
+  background: #22c55e;
+  color: #000;
+}
+
+.token-btn.save:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.token-btn.save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.token-btn.remove {
+  background: transparent;
+  border: 1px solid #333;
+  color: var(--text-dim);
+  width: 100%;
+}
+
+.token-btn.remove:hover:not(:disabled) {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.token-help {
+  display: block;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.token-help:hover {
+  color: var(--text-main);
+}
