@@ -3,7 +3,7 @@
  */
 
 import { signatures } from '../signatures';
-import { fetchUserRepos, RepoInfo } from '../api/github';
+import { fetchUserRepos, RepoInfo, githubFetch } from '../api/github';
 import { CACHE_TTL, getCacheWithTimestamp, setCache } from '../cache';
 import {
     injectProfileLoadingState,
@@ -94,7 +94,7 @@ async function scanRepoQuick(repo: RepoInfo): Promise<ScanResult> {
     }
 
     try {
-        const treeRes = await fetch(
+        const treeRes = await githubFetch(
             `https://api.github.com/repos/${repo.full_name}/git/trees/${repo.default_branch}?recursive=1`
         );
 
@@ -151,10 +151,22 @@ export async function scanAndDisplayProfile(username: string): Promise<void> {
     injectProfileLoadingState(username);
     scannedProfileUsernames.add(username);
 
-    const repos = await fetchUserRepos(username);
+    const { repos, rateLimited, error } = await fetchUserRepos(username);
+
+    // Handle rate limit
+    if (rateLimited) {
+        injectProfileRateLimitError(username);
+        return;
+    }
+
+    // Handle API error vs genuinely no repos
     if (repos.length === 0) {
         removeProfileLoadingState();
-        injectProfileEmptyState(username, 0);
+        if (error) {
+            injectProfileEmptyState(username, 0, 'api_error');
+        } else {
+            injectProfileEmptyState(username, 0, 'no_repos');
+        }
         return;
     }
 
@@ -216,12 +228,12 @@ export async function scanAndDisplayProfile(username: string): Promise<void> {
         });
 
         if (newTechs.size === 0) {
-            injectProfileEmptyState(username, scannedCount);
+            injectProfileEmptyState(username, scannedCount, 'scanned_nothing');
         }
     } else if (cachedTechs.length === 0) {
         removeProfileLoadingState();
         if (repos.length > 0) {
-            injectProfileEmptyState(username, 0);
+            injectProfileEmptyState(username, 0, 'scanned_nothing');
         }
     }
 }

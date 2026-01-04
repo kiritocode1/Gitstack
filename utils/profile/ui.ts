@@ -72,8 +72,13 @@ export function removeProfileLoadingState(): void {
 
 /**
  * Inject empty state when no technologies found
+ * @param reason - 'no_repos' | 'scanned_nothing' | 'api_error'
  */
-export function injectProfileEmptyState(username: string, repoCount: number): void {
+export function injectProfileEmptyState(
+    username: string,
+    repoCount: number,
+    reason: 'no_repos' | 'scanned_nothing' | 'api_error' = 'scanned_nothing'
+): void {
     removeProfileLoadingState();
 
     const sidebar = getProfileSidebar();
@@ -94,16 +99,33 @@ export function injectProfileEmptyState(username: string, repoCount: number): vo
     heading.textContent = 'Tech Stack';
 
     const emptyText = document.createElement('div');
-    emptyText.textContent = 'No technologies detected';
     emptyText.style.fontSize = '13px';
     emptyText.style.color = isDark ? '#8b949e' : '#586069';
     emptyText.style.marginTop = '8px';
 
     const subtitle = document.createElement('div');
-    subtitle.textContent = repoCount > 0 ? `Scanned ${repoCount} repositories` : 'No public repositories found';
     subtitle.style.fontSize = '12px';
     subtitle.style.color = isDark ? '#6e7681' : '#8b949e';
     subtitle.style.marginTop = '4px';
+
+    // Set messages based on reason
+    switch (reason) {
+        case 'no_repos':
+            emptyText.textContent = 'No public repositories';
+            subtitle.textContent = 'This user has no public repositories to scan';
+            break;
+        case 'api_error':
+            emptyText.textContent = 'Could not scan repositories';
+            subtitle.textContent = 'API request failed - try again later';
+            break;
+        case 'scanned_nothing':
+        default:
+            emptyText.textContent = 'No technologies detected';
+            subtitle.textContent = repoCount > 0
+                ? `Scanned ${repoCount} repositories`
+                : 'No recognizable tech signatures found';
+            break;
+    }
 
     container.appendChild(heading);
     container.appendChild(emptyText);
@@ -131,77 +153,199 @@ export function injectProfileRateLimitError(username: string): void {
 
     const container = document.createElement('div');
     container.id = PROFILE_SIDEBAR_ID;
-    container.style.marginTop = '16px';
-    container.style.padding = '16px';
-    container.style.borderRadius = '6px';
-    container.style.border = `1px solid ${isDark ? '#f8514966' : '#cf222e33'}`;
-    container.style.backgroundColor = isDark ? '#0d1117' : '#ffffff';
+    container.style.cssText = `
+        margin-top: 16px;
+        padding: 16px;
+        border-radius: 8px;
+        border: 1px solid ${isDark ? '#1a1a1a' : '#d0d7de'};
+        background: ${isDark ? '#0a0a0a' : '#ffffff'};
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    `;
+
+    // Header label
+    const sectionLabel = document.createElement('div');
+    sectionLabel.textContent = '[RATE LIMIT] 制限';
+    sectionLabel.style.cssText = `
+        font-family: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
+        font-size: 10px;
+        color: ${isDark ? '#666' : '#8b949e'};
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
+    `;
 
     const heading = document.createElement('h2');
-    heading.className = 'h4 mb-2';
     heading.textContent = 'Tech Stack';
-    heading.style.display = 'flex';
-    heading.style.alignItems = 'center';
-    heading.style.gap = '8px';
-
-    // Warning icon
-    const warningIcon = document.createElement('span');
-    warningIcon.textContent = '⚠️';
-    warningIcon.style.fontSize = '14px';
-    heading.appendChild(warningIcon);
+    heading.style.cssText = `
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 4px 0;
+        color: ${isDark ? '#ffffff' : '#1f2328'};
+    `;
 
     const errorTitle = document.createElement('div');
-    errorTitle.textContent = 'Rate Limit Exceeded';
-    errorTitle.style.fontSize = '13px';
-    errorTitle.style.fontWeight = '600';
-    errorTitle.style.color = isDark ? '#f85149' : '#cf222e';
-    errorTitle.style.marginTop = '8px';
+    errorTitle.innerHTML = '<span style="color: #f85149;">●</span> Rate limit exceeded';
+    errorTitle.style.cssText = `
+        font-size: 12px;
+        color: ${isDark ? '#8b949e' : '#656d76'};
+        margin-bottom: 12px;
+    `;
 
-    const errorDesc = document.createElement('div');
-    errorDesc.textContent = 'GitHub API limit reached (60 requests/hour for unauthenticated users).';
-    errorDesc.style.fontSize = '12px';
-    errorDesc.style.color = isDark ? '#8b949e' : '#586069';
-    errorDesc.style.marginTop = '6px';
-    errorDesc.style.lineHeight = '1.4';
+    // Token section
+    const tokenSection = document.createElement('div');
+    tokenSection.style.cssText = `
+        background: ${isDark ? '#000' : '#f6f8fa'};
+        border: 1px solid ${isDark ? '#1a1a1a' : '#d0d7de'};
+        border-radius: 6px;
+        padding: 12px;
+    `;
 
-    const suggestion = document.createElement('div');
-    suggestion.style.marginTop = '12px';
-    suggestion.style.padding = '10px';
-    suggestion.style.borderRadius = '6px';
-    suggestion.style.backgroundColor = isDark ? 'rgba(56, 139, 253, 0.1)' : '#ddf4ff';
-    suggestion.style.border = `1px solid ${isDark ? 'rgba(56, 139, 253, 0.4)' : '#54aeff66'}`;
+    const tokenTitle = document.createElement('div');
+    tokenTitle.textContent = 'GitHub Token';
+    tokenTitle.style.cssText = `
+        font-size: 12px;
+        font-weight: 500;
+        color: ${isDark ? '#ffffff' : '#1f2328'};
+        margin-bottom: 4px;
+    `;
 
-    const suggestionTitle = document.createElement('div');
-    suggestionTitle.textContent = '💡 Add a GitHub Token';
-    suggestionTitle.style.fontSize = '12px';
-    suggestionTitle.style.fontWeight = '600';
-    suggestionTitle.style.color = isDark ? '#58a6ff' : '#0969da';
+    const tokenDesc = document.createElement('div');
+    tokenDesc.textContent = 'Increases rate limit from 60 to 5,000 requests/hour';
+    tokenDesc.style.cssText = `
+        font-size: 10px;
+        color: ${isDark ? '#666' : '#8b949e'};
+        margin-bottom: 10px;
+    `;
 
-    const suggestionText = document.createElement('div');
-    suggestionText.textContent = 'Open extension popup → Settings → Add your Personal Access Token to get 5,000 requests/hour.';
-    suggestionText.style.fontSize = '11px';
-    suggestionText.style.color = isDark ? '#8b949e' : '#586069';
-    suggestionText.style.marginTop = '4px';
-    suggestionText.style.lineHeight = '1.4';
+    const tokenInput = document.createElement('input');
+    tokenInput.type = 'password';
+    tokenInput.placeholder = 'ghp_xxxxxxxxxxxx';
+    tokenInput.style.cssText = `
+        width: 100%;
+        padding: 8px 10px;
+        font-size: 11px;
+        font-family: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
+        border: 1px solid ${isDark ? '#333' : '#d0d7de'};
+        border-radius: 4px;
+        background: ${isDark ? '#000' : '#ffffff'};
+        color: ${isDark ? '#ffffff' : '#1f2328'};
+        outline: none;
+        box-sizing: border-box;
+        margin-bottom: 8px;
+    `;
+
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save & Retry';
+    saveBtn.style.cssText = `
+        width: 100%;
+        padding: 8px 12px;
+        font-size: 11px;
+        font-weight: 500;
+        border: none;
+        border-radius: 4px;
+        background: #22c55e;
+        color: #000;
+        cursor: pointer;
+        transition: background 0.2s;
+    `;
+
+    const statusMsg = document.createElement('div');
+    statusMsg.style.cssText = `
+        font-size: 10px;
+        margin-top: 6px;
+        display: none;
+    `;
+
+    saveBtn.onclick = async () => {
+        const token = tokenInput.value.trim();
+        if (!token) {
+            statusMsg.textContent = 'Please enter a token';
+            statusMsg.style.color = '#f85149';
+            statusMsg.style.display = 'block';
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        saveBtn.style.opacity = '0.5';
+        statusMsg.style.display = 'none';
+
+        try {
+            await browser.storage.sync.set({ githubToken: token });
+            statusMsg.textContent = '✓ Token saved! Reloading...';
+            statusMsg.style.color = '#22c55e';
+            statusMsg.style.display = 'block';
+            setTimeout(() => location.reload(), 500);
+        } catch (e) {
+            statusMsg.textContent = 'Failed to save token';
+            statusMsg.style.color = '#f85149';
+            statusMsg.style.display = 'block';
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save & Retry';
+            saveBtn.style.opacity = '1';
+        }
+    };
+
+    tokenInput.onkeydown = (e) => {
+        if (e.key === 'Enter') saveBtn.click();
+    };
 
     const tokenLink = document.createElement('a');
     tokenLink.href = 'https://github.com/settings/tokens?type=beta';
     tokenLink.target = '_blank';
-    tokenLink.textContent = 'Create a token on GitHub →';
-    tokenLink.style.display = 'inline-block';
-    tokenLink.style.marginTop = '8px';
-    tokenLink.style.fontSize = '11px';
-    tokenLink.style.color = isDark ? '#58a6ff' : '#0969da';
-    tokenLink.style.textDecoration = 'none';
+    tokenLink.textContent = 'Create a token →';
+    tokenLink.style.cssText = `
+        display: block;
+        margin-top: 8px;
+        font-size: 10px;
+        color: ${isDark ? '#666' : '#8b949e'};
+        text-decoration: none;
+        transition: color 0.2s;
+    `;
 
-    suggestion.appendChild(suggestionTitle);
-    suggestion.appendChild(suggestionText);
-    suggestion.appendChild(tokenLink);
+    tokenSection.appendChild(tokenTitle);
+    tokenSection.appendChild(tokenDesc);
+    tokenSection.appendChild(tokenInput);
+    tokenSection.appendChild(saveBtn);
+    tokenSection.appendChild(statusMsg);
+    tokenSection.appendChild(tokenLink);
 
+    // Help section
+    const helpSection = document.createElement('div');
+    helpSection.style.cssText = `
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid ${isDark ? '#1a1a1a' : '#d0d7de'};
+    `;
+
+    const helpLabel = document.createElement('div');
+    helpLabel.textContent = '[HELP] ヘルプ';
+    helpLabel.style.cssText = `
+        font-family: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
+        font-size: 9px;
+        color: ${isDark ? '#444' : '#8b949e'};
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    `;
+
+    const helpLink = document.createElement('a');
+    helpLink.href = 'https://x.com/blank_spacets';
+    helpLink.target = '_blank';
+    helpLink.textContent = 'DM for suggestions';
+    helpLink.style.cssText = `
+        font-size: 11px;
+        color: ${isDark ? '#666' : '#656d76'};
+        text-decoration: none;
+    `;
+
+    helpSection.appendChild(helpLabel);
+    helpSection.appendChild(helpLink);
+
+    container.appendChild(sectionLabel);
     container.appendChild(heading);
     container.appendChild(errorTitle);
-    container.appendChild(errorDesc);
-    container.appendChild(suggestion);
+    container.appendChild(tokenSection);
+    container.appendChild(helpSection);
 
     // Insert AFTER the h-card
     const hCard = sidebar.querySelector('.h-card');

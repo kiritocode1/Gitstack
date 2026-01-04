@@ -82,7 +82,7 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 /**
  * Authenticated fetch wrapper for GitHub API
  */
-async function githubFetch(url: string): Promise<Response> {
+export async function githubFetch(url: string): Promise<Response> {
     const headers = await getAuthHeaders();
     return fetch(url, { headers });
 }
@@ -169,13 +169,21 @@ export async function fetchRepoTree(owner: string, repo: string): Promise<string
     }
 }
 
+export interface FetchReposResult {
+    repos: RepoInfo[];
+    rateLimited: boolean;
+    error: boolean;
+}
+
 /**
  * Fetch user's public repositories
  */
-export async function fetchUserRepos(username: string): Promise<RepoInfo[]> {
+export async function fetchUserRepos(username: string): Promise<FetchReposResult> {
     const repos: RepoInfo[] = [];
     let page = 1;
     const maxPages = 3;
+    let rateLimited = false;
+    let error = false;
 
     try {
         while (page <= maxPages) {
@@ -186,8 +194,13 @@ export async function fetchUserRepos(username: string): Promise<RepoInfo[]> {
 
             if (!res.ok) {
                 if (res.status === 403) {
-                    console.warn('[GitStack] Rate limited on user repos!');
+                    const remaining = res.headers.get('X-RateLimit-Remaining');
+                    if (remaining === '0') {
+                        console.warn('[GitStack] Rate limited on user repos!');
+                        rateLimited = true;
+                    }
                 }
+                error = true;
                 break;
             }
             const data = await res.json();
@@ -198,9 +211,10 @@ export async function fetchUserRepos(username: string): Promise<RepoInfo[]> {
         }
     } catch (e) {
         console.warn('[GitStack] Error fetching repos:', e);
+        error = true;
     }
 
-    return repos;
+    return { repos, rateLimited, error: error && repos.length === 0 };
 }
 
 /**
