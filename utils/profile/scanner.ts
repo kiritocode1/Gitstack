@@ -451,7 +451,7 @@ async function scanRepoQuick(repo: RepoInfo): Promise<ScanResult> {
 export async function scanAndDisplayProfile(username: string): Promise<void> {
     const profileCacheKey = `gitstack-profile-${username}`;
 
-    // Check cache first
+    // Check cache first - use it if fresh
     const cached = getCacheWithTimestamp<{ techs: string[]; repoCount: number }>(profileCacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL.PROFILE && cached.data.techs?.length > 0) {
         console.log('[GitStack] Using cached profile data for', username);
@@ -462,22 +462,71 @@ export async function scanAndDisplayProfile(username: string): Promise<void> {
     injectProfileLoadingState(username);
     scannedProfileUsernames.add(username);
 
-    const { repos, rateLimited, error } = await fetchUserRepos(username);
+    // Try to fetch repos with retry logic
+    let repos: RepoInfo[] = [];
+    let rateLimited = false;
+    let error = false;
+    let attempts = 0;
+    const maxAttempts = 2;
+
+    while (attempts < maxAttempts) {
+        const result = await fetchUserRepos(username);
+        repos = result.repos;
+        rateLimited = result.rateLimited;
+        error = result.error;
+
+        if (!error || repos.length > 0) break;
+
+        // Wait before retry
+        await new Promise(r => setTimeout(r, 1000));
+        attempts++;
+        console.log(`[GitStack] Retrying repo fetch for ${username} (attempt ${attempts + 1})`);
+    }
 
     // Handle rate limit
     if (rateLimited) {
+        // Try to show stale cached data instead of error
+        if (cached && cached.data.techs?.length > 0) {
+            console.log('[GitStack] Rate limited, showing stale cache for', username);
+            removeProfileLoadingState();
+            injectProfileSidebar(cached.data.techs, cached.data.repoCount, username, false, async () => { });
+            return;
+        }
         injectProfileRateLimitError(username);
         return;
     }
 
-    // Handle API error vs genuinely no repos
-    if (repos.length === 0) {
-        removeProfileLoadingState();
-        if (error) {
-            injectProfileEmptyState(username, 0, 'api_error');
-        } else {
-            injectProfileEmptyState(username, 0, 'no_repos');
+    // Handle API error - but try stale cache first
+    if (error && repos.length === 0) {
+        if (cached && cached.data.techs?.length > 0) {
+            console.log('[GitStack] API error, showing stale cache for', username);
+            removeProfileLoadingState();
+            injectProfileSidebar(cached.data.techs, cached.data.repoCount, username, false, async () => { });
+            return;
         }
+        removeProfileLoadingState();
+        injectProfileEmptyState(username, 0, 'api_error');
+        return;
+    }
+
+    // Genuinely no repos - but double check by looking at the profile page
+    if (repos.length === 0) {
+        // Check if we can see repo count on the page
+        const repoCountEl = document.querySelector('a[href$="?tab=repositories"] .Counter');
+        const pageRepoCount = repoCountEl ? parseInt(repoCountEl.textContent || '0', 10) : 0;
+
+        if (pageRepoCount > 0) {
+            // Page shows repos exist but API returned none - likely a transient error
+            console.log('[GitStack] Page shows repos but API returned none, retrying...');
+            setTimeout(() => {
+                scannedProfileUsernames.delete(username);
+                scanAndDisplayProfile(username);
+            }, 2000);
+            return;
+        }
+
+        removeProfileLoadingState();
+        injectProfileEmptyState(username, 0, 'no_repos');
         return;
     }
 

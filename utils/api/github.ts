@@ -3,9 +3,19 @@
  * 
  * Supports authenticated requests via GitHub token stored in extension storage.
  * Authenticated requests have a 5,000/hour rate limit vs 60/hour unauthenticated.
+ * 
+ * Token storage is resilient with fallbacks:
+ * 1. browser.storage.sync (primary - syncs across devices)
+ * 2. browser.storage.local (fallback - local only)
+ * 3. localStorage (fallback - works in content scripts)
+ * 4. Memory (last resort - session only)
  */
 
 import { CACHE_TTL } from '../cache';
+
+// Storage keys
+const TOKEN_KEY = 'githubToken';
+const TOKEN_LS_KEY = 'gitstack-github-token';
 
 // In-memory cache for repository tree
 const treeCache = new Map<string, { paths: string[]; timestamp: number }>();
@@ -13,18 +23,20 @@ const treeCache = new Map<string, { paths: string[]; timestamp: number }>();
 // Cached token to avoid repeated storage lookups
 let cachedToken: string | null = null;
 let tokenChecked = false;
+let storageAvailable = true;
 
 // Listen for storage changes (when popup saves/removes token)
 try {
     browser.storage.onChanged.addListener((changes, areaName) => {
-        if (areaName === 'sync' && changes.githubToken) {
-            cachedToken = (changes.githubToken.newValue as string) ?? null;
+        if ((areaName === 'sync' || areaName === 'local') && changes[TOKEN_KEY]) {
+            cachedToken = (changes[TOKEN_KEY].newValue as string) ?? null;
             tokenChecked = true;
             console.log('[GitStack] Token updated from storage:', cachedToken ? 'set' : 'removed');
         }
     });
 } catch (e) {
     // Storage listener not available (e.g., in non-extension context)
+    storageAvailable = false;
 }
 
 export interface RepoInfo {
@@ -37,27 +49,75 @@ export interface RepoInfo {
 }
 
 /**
- * Get GitHub token from extension storage
+ * Try to get token from extension storage with retry
  */
-async function getGitHubToken(): Promise<string | null> {
-    if (tokenChecked) return cachedToken;
+async function tryExtensionStorage(retries = 2): Promise<string | null> {
+    for (let i = 0; i < retries; i++) {
+        try {
+            // Try sync storage first (syncs across devices)
+            const syncResult = await browser.storage.sync.get(TOKEN_KEY) as { [key: string]: string };
+            if (syncResult[TOKEN_KEY]) {
+                return syncResult[TOKEN_KEY];
+            }
 
-    try {
-        // Try to get token from extension storage
-        const result = await browser.storage.sync.get('githubToken') as { githubToken?: string };
-        cachedToken = result.githubToken ?? null;
-        tokenChecked = true;
+            // Try local storage
+            const localResult = await browser.storage.local.get(TOKEN_KEY) as { [key: string]: string };
+            if (localResult[TOKEN_KEY]) {
+                return localResult[TOKEN_KEY];
+            }
 
-        if (cachedToken) {
-            console.log('[GitStack] Using authenticated GitHub API requests');
+            return null;
+        } catch (e) {
+            if (i < retries - 1) {
+                await new Promise(r => setTimeout(r, 100 * (i + 1)));
+            }
         }
+    }
+    return null;
+}
 
-        return cachedToken;
-    } catch (e) {
-        console.warn('[GitStack] Could not access extension storage:', e);
-        tokenChecked = true;
+/**
+ * Try to get token from localStorage (works in content scripts)
+ */
+function tryLocalStorage(): string | null {
+    try {
+        const token = localStorage.getItem(TOKEN_LS_KEY);
+        return token || null;
+    } catch {
         return null;
     }
+}
+
+/**
+ * Get GitHub token from storage with fallback chain
+ */
+async function getGitHubToken(): Promise<string | null> {
+    // Return cached if we've already checked
+    if (tokenChecked && cachedToken) return cachedToken;
+
+    // 1. Try extension storage (with retry)
+    if (storageAvailable) {
+        const extToken = await tryExtensionStorage();
+        if (extToken) {
+            cachedToken = extToken;
+            tokenChecked = true;
+            console.log('[GitStack] Using authenticated GitHub API requests (from extension storage)');
+            return cachedToken;
+        }
+    }
+
+    // 2. Try localStorage fallback
+    const lsToken = tryLocalStorage();
+    if (lsToken) {
+        cachedToken = lsToken;
+        tokenChecked = true;
+        console.log('[GitStack] Using authenticated GitHub API requests (from localStorage fallback)');
+        return cachedToken;
+    }
+
+    // 3. No token found
+    tokenChecked = true;
+    return null;
 }
 
 /**
@@ -236,21 +296,93 @@ export async function fetchRawFile(
 }
 
 /**
- * Set GitHub token (called from popup settings)
+ * Set GitHub token with fallback storage layers
+ * Returns status: 'success' | 'partial' | 'memory_only' | 'failed'
  */
-export async function setGitHubToken(token: string | null): Promise<void> {
-    try {
-        if (token) {
-            await browser.storage.sync.set({ githubToken: token });
-            cachedToken = token;
-        } else {
-            await browser.storage.sync.remove('githubToken');
-            cachedToken = null;
+export async function setGitHubToken(token: string | null): Promise<{
+    success: boolean;
+    status: 'success' | 'partial' | 'memory_only' | 'failed';
+    message: string;
+}> {
+    let syncSuccess = false;
+    let localSuccess = false;
+    let lsSuccess = false;
+
+    // Always update memory cache first
+    cachedToken = token;
+    tokenChecked = true;
+
+    if (token) {
+        // Try sync storage (best - syncs across devices)
+        try {
+            await browser.storage.sync.set({ [TOKEN_KEY]: token });
+            syncSuccess = true;
+        } catch (e) {
+            console.warn('[GitStack] Sync storage failed:', e);
         }
-        tokenChecked = true;
-        console.log('[GitStack] GitHub token updated');
-    } catch (e) {
-        console.warn('[GitStack] Could not save token:', e);
+
+        // Try local storage (extension-only fallback)
+        try {
+            await browser.storage.local.set({ [TOKEN_KEY]: token });
+            localSuccess = true;
+        } catch (e) {
+            console.warn('[GitStack] Local storage failed:', e);
+        }
+
+        // Try localStorage (works in content scripts)
+        try {
+            localStorage.setItem(TOKEN_LS_KEY, token);
+            lsSuccess = true;
+        } catch (e) {
+            console.warn('[GitStack] localStorage failed:', e);
+        }
+    } else {
+        // Remove token from all storage layers
+        try {
+            await browser.storage.sync.remove(TOKEN_KEY);
+            syncSuccess = true;
+        } catch { }
+
+        try {
+            await browser.storage.local.remove(TOKEN_KEY);
+            localSuccess = true;
+        } catch { }
+
+        try {
+            localStorage.removeItem(TOKEN_LS_KEY);
+            lsSuccess = true;
+        } catch { }
+    }
+
+    // Determine status
+    if (syncSuccess || localSuccess) {
+        console.log('[GitStack] Token saved to extension storage');
+        return {
+            success: true,
+            status: 'success',
+            message: 'Token saved successfully'
+        };
+    } else if (lsSuccess) {
+        console.log('[GitStack] Token saved to localStorage only (extension storage unavailable)');
+        return {
+            success: true,
+            status: 'partial',
+            message: 'Token saved (may not sync across devices)'
+        };
+    } else if (token) {
+        // Only memory worked
+        console.log('[GitStack] Token stored in memory only (all storage failed)');
+        return {
+            success: true,
+            status: 'memory_only',
+            message: 'Token active for this session only'
+        };
+    } else {
+        return {
+            success: true,
+            status: 'success',
+            message: 'Token removed'
+        };
     }
 }
 
@@ -260,4 +392,49 @@ export async function setGitHubToken(token: string | null): Promise<void> {
 export async function hasGitHubToken(): Promise<boolean> {
     const token = await getGitHubToken();
     return token !== null && token.length > 0;
+}
+
+/**
+ * Validate token by making a test API call
+ */
+export async function validateGitHubToken(token: string): Promise<{
+    valid: boolean;
+    scopes: string[];
+    rateLimit: number;
+    error?: string;
+}> {
+    try {
+        const res = await fetch('https://api.github.com/user', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github+json',
+            }
+        });
+
+        if (res.ok) {
+            const scopes = res.headers.get('X-OAuth-Scopes')?.split(', ') || [];
+            const rateLimit = parseInt(res.headers.get('X-RateLimit-Limit') || '5000', 10);
+            return { valid: true, scopes, rateLimit };
+        } else if (res.status === 401) {
+            return { valid: false, scopes: [], rateLimit: 0, error: 'Invalid token' };
+        } else {
+            return { valid: false, scopes: [], rateLimit: 0, error: `API error: ${res.status}` };
+        }
+    } catch (e) {
+        return { valid: false, scopes: [], rateLimit: 0, error: 'Network error' };
+    }
+}
+
+/**
+ * Clear token from all storage layers
+ */
+export async function clearGitHubToken(): Promise<void> {
+    cachedToken = null;
+    tokenChecked = true;
+
+    try { await browser.storage.sync.remove(TOKEN_KEY); } catch { }
+    try { await browser.storage.local.remove(TOKEN_KEY); } catch { }
+    try { localStorage.removeItem(TOKEN_LS_KEY); } catch { }
+
+    console.log('[GitStack] Token cleared from all storage');
 }
